@@ -29,6 +29,7 @@ if "assistants" not in st.session_state: st.session_state.assistants={}
 if "current_candidate" not in st.session_state: st.session_state.current_candidate=None
 if "interview_started_at" not in st.session_state: st.session_state.interview_started_at=None
 if "widget_open" not in st.session_state: st.session_state.widget_open=False
+if "interview_status" not in st.session_state: st.session_state.interview_status="idle"
 
 with st.sidebar:
     st.header("Configuration")
@@ -124,7 +125,7 @@ Purpose: To simulate a 30–35 minute UPSC Personality Test Interview for candid
 - Formal, dignified, polite, and probing.
 - Neutral and impartial.
 - Adaptive: switch roles between Chair and Subject-Matter Experts.
-- Build follow-up questions from candidate’s answers.
+- Build follow-up questions from candidate's answers.
 
 [Response Guidelines]
 - Ask one clear question at a time.
@@ -144,7 +145,7 @@ Purpose: To simulate a 30–35 minute UPSC Personality Test Interview for candid
 7) Feedback (5 min)
 
 [Error Handling]
-- If candidate says “I don’t know” accept gracefully.
+- If candidate says "I don't know" accept gracefully.
 - If candidate misunderstands politely clarify.
 
 [Interviewee JSON]
@@ -162,7 +163,7 @@ st.header("Step 4 · Create/Attach Assistant")
 cname_default=(st.session_state.candidate_json or {}).get("name") or "Candidate"
 create_btn=st.button("Create/Update Assistant For This Candidate", type="primary")
 
-SUMMARY_PLAN_MESSAGES=[{"role":"system","content":"You are an expert note-taker.\nYou will be given a transcript of a call. Summarize the call in 2–3 sentences, highlighting:\n- Key topics/questions asked\n- Candidate’s response areas (background, current affairs, ethics, optional subject, hobbies).\n\nOutput: concise, neutral summary (2–3 sentences)."},{"role":"user","content":"Here is the transcript:\n\n{{transcript}}\n\n. Here is the ended reason of the call:\n\n{{endedReason}}\n\n"}]
+SUMMARY_PLAN_MESSAGES=[{"role":"system","content":"You are an expert note-taker.\nYou will be given a transcript of a call. Summarize the call in 2–3 sentences, highlighting:\n- Key topics/questions asked\n- Candidate's response areas (background, current affairs, ethics, optional subject, hobbies).\n\nOutput: concise, neutral summary (2–3 sentences)."},{"role":"user","content":"Here is the transcript:\n\n{{transcript}}\n\n. Here is the ended reason of the call:\n\n{{endedReason}}\n\n"}]
 STRUCTURED_SCHEMA={"type":"object","properties":{"clarityOfExpression":{"type":"string"},"reasoningAbility":{"type":"string"},"analyticalDepth":{"type":"string"},"currentAffairsAwareness":{"type":"string"},"ethicalJudgment":{"type":"string"},"personalityTraits":{"type":"string"},"socialAwareness":{"type":"string"},"hobbiesDepth":{"type":"string"},"overallImpression":{"type":"string"},"strengths":{"type":"string"},"areasForImprovement":{"type":"string"},"overallFeedback":{"type":"string"}}}
 STRUCTURED_MESSAGES=[{"role":"system","content":"You are an expert structured-data extractor.\nYou will be given:\n1. The transcript of a call\n2. The system prompt of the AI participant\n\nExtract and structure the following interview performance data. Each field should contain qualitative comments (2–3 sentences max), not numeric scores.\n- clarityOfExpression\n- reasoningAbility\n- analyticalDepth\n- currentAffairsAwareness\n- ethicalJudgment\n- personalityTraits\n- socialAwareness\n- hobbiesDepth\n- overallImpression\nAlso capture overall insights:\n- strengths\n- areasForImprovement\n- overallFeedback\nOutput: JSON with all fields populated.\n\nJson Schema:\n{{schema}}\n\nOnly respond with the JSON."},{"role":"user","content":"Here is the transcript:\n\n{{transcript}}\n\n. Here is the ended reason of the call:\n\n{{endedReason}}\n\n"}]
 SUCCESS_PLAN_MESSAGES=[{"role":"system","content":"You are an expert call evaluator.\nYou will be given:\n1. The transcript of a call\n2. The system prompt of the AI participant (UPSC Board Member persona).\nEvaluate the success of the interview based on:\n1. Clarity of Expression\n2. Reasoning & Analytical Depth\n3. Awareness of Current Affairs & Governance\n4. Ethical & Situational Judgment\n5. Personality Traits & Social Awareness\nOverall Success:\n- Highly Suitable\n- Suitable\n- Borderline\n- Unsuitable\nOutput:\n- Overall Success Rating\n- Brief justification (2–3 sentences).\n\nRubric:\n\n{{rubric}}\n\nOnly respond with the evaluation result."},{"role":"user","content":"Here is the transcript of the call:\n\n{{transcript}}\n\n. Here is the ended reason of the call:\n\n{{endedReason}}\n\n"},{"role":"user","content":"Here was the system prompt of the call:\n\n{{systemPrompt}}\n\n"}]
@@ -191,72 +192,373 @@ if create_btn:
         except Exception as e:
             st.error(str(e))
 
+# ENHANCED STEP 5 WITH IMPROVED VOICE INTEGRATION
 st.markdown("---")
 st.header("Step 5 · Start Interview")
+
+# Helper functions for improved functionality
+def create_interview_url(vapi_public_key, assistant_id, candidate_name, roll_no, is_mobile=False):
+    """Generate a properly formatted interview URL"""
+    base_url = "https://cdn.jsdelivr.net/gh/akashengine/ai-mock-interview@main/static/voice.html"
+    params = {
+        'apiKey': vapi_public_key,
+        'assistant': assistant_id,
+        'candidate': candidate_name,
+        'rollNo': roll_no
+    }
+    if is_mobile:
+        params['mobile'] = 'true'
+    
+    param_string = '&'.join([f"{k}={v}" for k, v in params.items()])
+    return f"{base_url}?{param_string}"
+
+def check_browser_compatibility():
+    """Add browser compatibility check"""
+    compatibility_script = """
+    <script>
+    function checkBrowserFeatures() {
+        const features = {
+            mediaDevices: !!navigator.mediaDevices,
+            getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+            webRTC: !!(window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection),
+            popups: true
+        };
+        
+        let warnings = [];
+        if (!features.mediaDevices) warnings.push("Media devices not supported");
+        if (!features.getUserMedia) warnings.push("Microphone access not available");
+        if (!features.webRTC) warnings.push("WebRTC not supported");
+        
+        if (warnings.length > 0) {
+            console.warn("Browser compatibility issues:", warnings);
+        }
+    }
+    checkBrowserFeatures();
+    </script>
+    """
+    return compatibility_script
+
+def add_interview_status_monitoring():
+    """Add real-time status monitoring"""
+    status_colors = {
+        'idle': '⚪ Idle',
+        'starting': '🟡 Starting', 
+        'active': '🔴 Active',
+        'completed': '🟢 Completed',
+        'error': '🔴 Error'
+    }
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Interview Status", status_colors.get(st.session_state.interview_status, '⚪ Unknown'))
+    
+    with col2:
+        if st.session_state.interview_started_at:
+            start_time = dt.datetime.fromisoformat(st.session_state.interview_started_at.replace('Z', '+00:00'))
+            elapsed = dt.datetime.now(dt.timezone.utc) - start_time
+            st.metric("Time Elapsed", str(elapsed).split('.')[0])
+        else:
+            st.metric("Time Elapsed", "Not started")
+    
+    with col3:
+        if st.button("🔄 Refresh Status", help="Refresh the current status"):
+            st.rerun()
+
+def add_interview_instructions():
+    """Add comprehensive interview instructions"""
+    with st.expander("📋 Complete Interview Guidelines", expanded=False):
+        st.markdown("""
+        ### 🎯 Before Starting:
+        - **Environment**: Ensure you're in a quiet, well-lit room
+        - **Technology**: Use Chrome, Firefox, or Safari for best compatibility  
+        - **Internet**: Stable broadband connection recommended
+        - **Audio**: Test your microphone beforehand
+        - **Device**: Desktop/laptop preferred over mobile
+        
+        ### 🎤 During Interview:
+        - **Posture**: Sit upright, maintain good posture
+        - **Speech**: Speak clearly, neither too fast nor too slow
+        - **Listening**: Listen carefully to each question
+        - **Thinking**: Take a moment to think before answering
+        - **Length**: Aim for comprehensive but concise answers (2-3 minutes per response)
+        
+        ### ⚠️ Technical Issues:
+        - If audio cuts out, the interviewer will prompt you
+        - You can ask for question repetition if needed
+        - End the call and restart if major technical issues occur
+        - Keep this Streamlit tab open for monitoring
+        
+        ### 📊 Assessment Areas:
+        1. **Clarity of Expression** - How well you communicate your thoughts
+        2. **Reasoning Ability** - Your logical thinking and problem-solving process  
+        3. **Current Affairs Knowledge** - Awareness of recent developments
+        4. **Ethical Judgment** - Your moral reasoning and integrity
+        5. **Personality Traits** - Leadership qualities, social awareness, emotional intelligence
+        6. **Optional Subject Depth** - Technical knowledge in your chosen subject
+        """)
+
+# Add browser compatibility check
+st.components.v1.html(check_browser_compatibility(), height=0)
+
+# Add interview instructions
+add_interview_instructions()
+
+# Add status monitoring
+add_interview_status_monitoring()
+
 if not st.session_state.assistants:
-    st.info("Create an assistant first.")
+    st.info("⚠️ **Please create an assistant first in Step 4 above.**")
 else:
-    candidate_keys=list(st.session_state.assistants.keys())
-    sel=st.selectbox("Select Candidate", options=candidate_keys, index=candidate_keys.index(st.session_state.current_candidate) if st.session_state.current_candidate in candidate_keys else 0)
-    st.session_state.current_candidate=sel
-    a_id=st.session_state.assistants[sel]["assistant_id"]
+    candidate_keys = list(st.session_state.assistants.keys())
+    sel = st.selectbox("Select Candidate", options=candidate_keys, 
+                      index=candidate_keys.index(st.session_state.current_candidate) 
+                      if st.session_state.current_candidate in candidate_keys else 0)
+    st.session_state.current_candidate = sel
+    a_id = st.session_state.assistants[sel]["assistant_id"]
+    candidate_name = st.session_state.assistants[sel]["name"]
 
-    if st.button("Start Interview Session", type="primary"):
-        st.session_state.interview_started_at=dt.datetime.now(dt.timezone.utc).isoformat()
+    st.info(f"🎯 **Ready to interview:** {candidate_name} (Roll No: {sel})")
+    
+    # Main interview launch options
+    st.subheader("🚀 Launch Interview")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🎙️ **Start Interview (Recommended)**", type="primary", use_container_width=True, help="Opens voice interface in a popup window with full microphone access"):
+            st.session_state.interview_started_at = dt.datetime.now(dt.timezone.utc).isoformat()
+            st.session_state.interview_status = "starting"
+            
+            popup_script = f"""
+            <script>
+            function openVoiceInterview() {{
+                const width = 900;
+                const height = 700;
+                const left = (screen.width - width) / 2;
+                const top = (screen.height - height) / 2;
+                
+                const popup = window.open(
+                    'about:blank',
+                    'voice_interview_' + Date.now(),
+                    `width=${{width}},height=${{height}},left=${{left}},top=${{top}},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+                );
+                
+                if (popup) {{
+                    popup.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1">
+                        <title>🎤 UPSC Mock Interview - {candidate_name}</title>
+                        <style>
+                            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+                            body {{ 
+                                font-family: 'Segoe UI', system-ui, sans-serif;
+                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                min-height: 100vh; color: white; padding: 20px;
+                            }}
+                            .container {{ max-width: 800px; margin: 0 auto; }}
+                            .header {{ text-align: center; margin-bottom: 30px; }}
+                            .header h1 {{ font-size: 2.2em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }}
+                            .info-card {{ 
+                                background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; 
+                                margin-bottom: 20px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
+                            }}
+                            .widget-container {{ margin-top: 30px; }}
+                            .status {{ position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="status">🔴 LIVE</div>
+                        <div class="container">
+                            <div class="header">
+                                <h1>🎤 UPSC Civil Services Interview</h1>
+                                <p>Personality Test Simulation</p>
+                            </div>
+                            
+                            <div class="info-card">
+                                <h3>📋 Candidate Details</h3>
+                                <p><strong>Name:</strong> {candidate_name}</p>
+                                <p><strong>Roll Number:</strong> {sel}</p>
+                                <p><strong>Duration:</strong> 30-35 minutes + 5 min feedback</p>
+                                <p><strong>Status:</strong> <span id="callStatus">Ready to start</span></p>
+                            </div>
+                            
+                            <div class="info-card">
+                                <h4>🎯 Quick Reminders:</h4>
+                                <ul style="margin-left: 20px;">
+                                    <li>Allow microphone access when prompted</li>
+                                    <li>Speak clearly and at normal pace</li>
+                                    <li>Listen carefully to each question</li>
+                                    <li>Be confident and authentic</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="widget-container">
+                                <vapi-widget
+                                    public-key="{vapi_public_key}"
+                                    assistant-id="{a_id}"
+                                    mode="voice"
+                                    theme="dark"
+                                    base-bg-color="#000000"
+                                    accent-color="#14B8A6"
+                                    cta-button-color="#667eea"
+                                    cta-button-text-color="#ffffff"
+                                    border-radius="large"
+                                    size="full"
+                                    position="center"
+                                    title="UPSC MOCK INTERVIEW"
+                                    start-button-text="🎙️ Begin Interview"
+                                    end-button-text="📞 End Interview"
+                                    voice-show-transcript="true"
+                                    consent-required="true"
+                                    consent-title="Interview Consent"
+                                    consent-content="By proceeding, I consent to the recording and analysis of this mock interview session for assessment purposes in accordance with UPSC guidelines."
+                                    consent-storage-key="upsc_interview_consent"
+                                ></vapi-widget>
+                            </div>
+                        </div>
+                        
+                        <script src="https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js" async></script>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {{
+                                const widget = document.querySelector('vapi-widget');
+                                const statusEl = document.getElementById('callStatus');
+                                
+                                if (widget) {{
+                                    widget.addEventListener('call-start', () => {{
+                                        statusEl.textContent = '🔴 Interview in progress';
+                                        document.title = '🔴 LIVE: UPSC Interview - {candidate_name}';
+                                    }});
+                                    
+                                    widget.addEventListener('call-end', () => {{
+                                        statusEl.textContent = '✅ Interview completed';
+                                        document.title = '✅ Completed: UPSC Interview - {candidate_name}';
+                                    }});
+                                    
+                                    widget.addEventListener('error', (e) => {{
+                                        statusEl.textContent = '❌ Technical error occurred';
+                                        console.error('Widget error:', e);
+                                    }});
+                                }}
+                            }});
+                            
+                            // Prevent accidental closure
+                            window.addEventListener('beforeunload', (e) => {{
+                                if (document.title.includes('🔴 LIVE:')) {{
+                                    e.preventDefault();
+                                    e.returnValue = 'Your interview is in progress. Are you sure you want to leave?';
+                                }}
+                            }});
+                        </script>
+                    </body>
+                    </html>
+                    `);
+                    popup.document.close();
+                    popup.focus();
+                    
+                    // Monitor popup
+                    const checkClosed = setInterval(() => {{
+                        if (popup.closed) {{
+                            clearInterval(checkClosed);
+                            console.log('Interview window closed');
+                        }}
+                    }}, 1000);
+                    
+                }} else {{
+                    alert('❌ Popup blocked! Please allow popups for this site and try again.\\n\\nHow to allow popups:\\n1. Click the popup icon in your address bar\\n2. Select "Always allow popups from this site"\\n3. Try again');
+                }}
+            }}
+            openVoiceInterview();
+            </script>
+            """
+            st.components.v1.html(popup_script, height=0)
+            st.success("🚀 **Interview window launched!** If you don't see it, please allow popups and try again.")
+            st.session_state.interview_status = "active"
+    
+    with col2:
+        external_url = create_interview_url(vapi_public_key, a_id, candidate_name, sel)
+        if st.button("🌐 **Open in New Tab**", use_container_width=True, help="Opens the interview in a new browser tab"):
+            st.session_state.interview_started_at = dt.datetime.now(dt.timezone.utc).isoformat()
+            st.session_state.interview_status = "starting"
+            
+            # Use JavaScript to open in new tab
+            new_tab_script = f"""
+            <script>
+            window.open('{external_url}', '_blank');
+            </script>
+            """
+            st.components.v1.html(new_tab_script, height=0)
+            st.success("🎯 **New tab opened!** Switch to the interview tab to begin.")
 
-    # Embed Vapi Web Widget directly on this screen
-    widget_html=textwrap.dedent(f"""
-    <div id="vapi-container">
-      <vapi-widget
-        public-key="{vapi_public_key}"
-        assistant-id="{a_id}"
-        mode="voice"
-        theme="dark"
-        base-bg-color="#000000"
-        accent-color="#14B8A6"
-        cta-button-color="#000000"
-        cta-button-text-color="#ffffff"
-        border-radius="large"
-        size="full"
-        position="bottom-right"
-        title="UPSC MOCK INTERVIEW"
-        start-button-text="Start"
-        end-button-text="End Call"
-        chat-first-message="Hey, How can I help you today?"
-        chat-placeholder="Type your message..."
-        voice-show-transcript="true"
-        consent-required="true"
-        consent-title="Terms and conditions"
-        consent-content="By clicking &quot;Agree,&quot; and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as otherwise described in our Terms of Service."
-        consent-storage-key="vapi_widget_consent"
-      ></vapi-widget>
-    </div>
-    <script src="https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js" async type="text/javascript"></script>
-    """).strip()
-    st.components.v1.html(widget_html, height=360)
+    # Additional options
+    st.subheader("📱 Alternative Options")
+    
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        mobile_url = create_interview_url(vapi_public_key, a_id, candidate_name, sel, is_mobile=True)
+        st.link_button("📱 Mobile-Friendly Version", mobile_url, use_container_width=True, help="Optimized for mobile devices")
+    
+    with col4:
+        if st.button("📋 Copy Interview Link", use_container_width=True, help="Copy link to share or open manually"):
+            copy_script = f"""
+            <script>
+            navigator.clipboard.writeText('{external_url}').then(() => {{
+                alert('✅ Interview link copied to clipboard!');
+            }}).catch(() => {{
+                prompt('📋 Copy this link manually:', '{external_url}');
+            }});
+            </script>
+            """
+            st.components.v1.html(copy_script, height=0)
 
-    # Mic-friendly launcher in a new tab (top-level context)
-    if st.button("Open Mic-Friendly Widget In New Tab"):
-        launcher=textwrap.dedent(f"""
-        <script>
-          (function(){{
-            var html='<!DOCTYPE html><html><head><meta charset=\'utf-8\'><meta name=\'viewport\' content=\'width=device-width, initial-scale=1\'><title>UPSC Mock Interview</title></head><body>'+
-              '<vapi-widget public-key=\'{vapi_public_key}\' assistant-id=\'{a_id}\' mode=\'voice\' theme=\'dark\' size=\'full\' position=\'bottom-right\' title=\'UPSC MOCK INTERVIEW\' start-button-text=\'Start\' end-button-text=\'End Call\' voice-show-transcript=\'true\' consent-required=\'true\' consent-title=\'Terms and conditions\' consent-content=\'By clicking &quot;Agree,&quot; and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as otherwise described in our Terms of Service.\' consent-storage-key=\'vapi_widget_consent\'></vapi-widget>'+
-              '<script src=\'https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js\' async type=\'text/javascript\'></'+'script>'+
-              '</body></html>';
-            var w=window.open('', '_blank');
-            if(w){{ w.document.write(html); w.document.close(); }}
-          }})();
-        </script>
-        """).strip()
-        st.components.v1.html(launcher, height=0)
+    # Show current session info
+    if st.session_state.interview_started_at:
+        start_time = dt.datetime.fromisoformat(st.session_state.interview_started_at.replace('Z', '+00:00'))
+        elapsed = dt.datetime.now(dt.timezone.utc) - start_time
+        
+        st.info(f"""
+        ⏱️ **Current Session:**
+        - **Started:** {start_time.strftime('%H:%M:%S UTC')}
+        - **Elapsed:** {str(elapsed).split('.')[0]}
+        - **Status:** {st.session_state.interview_status.title()}
+        """)
+        
+        if st.button("🛑 Reset Session", help="Clear current session and start fresh"):
+            st.session_state.interview_started_at = None
+            st.session_state.interview_status = "idle"
+            st.success("✅ Session reset. You can start a new interview now.")
+            st.rerun()
 
-    # External static hosting via jsDelivr (serves the repo's voice.html). Update owner/repo if forked.
-    try:
-        external_voice_url=f"https://cdn.jsdelivr.net/gh/akashengine/ai-mock-interview@main/static/voice.html?apiKey={vapi_public_key}&assistant={a_id}"
-        st.link_button("Open External Voice Page (jsDelivr)", external_voice_url, type="secondary")
-    except Exception:
-        pass
+    # Troubleshooting section
+    with st.expander("🔧 Troubleshooting", expanded=False):
+        st.markdown("""
+        ### 🚨 Common Issues & Solutions:
+        
+        **🎤 Microphone Problems:**
+        - Click the 🔒 lock icon in your browser's address bar → Allow microphone
+        - Try a different browser (Chrome recommended)
+        - Check system microphone settings
+        - Restart browser completely
+        
+        **🌐 Popup Blocked:**
+        - Look for popup icon in address bar
+        - Select "Always allow popups from this site"
+        - Try the "New Tab" option instead
+        
+        **📞 Call Issues:**
+        - Ensure stable internet connection
+        - Close other bandwidth-heavy applications
+        - Try refreshing and starting again
+        - Use wired internet if possible
+        
+        **📱 Mobile Issues:**
+        - Use desktop/laptop for best experience
+        - Ensure phone is fully charged
+        - Use external microphone/headset if available
+        """)
 
 st.markdown("---")
 st.header("Step 6 · Fetch & Display Feedback")
@@ -264,7 +566,7 @@ auto=st.checkbox("Auto-refresh every 5s", value=False)
 fetch_now=st.button("Fetch Latest Feedback For Selected Candidate", type="primary")
 if auto:
     time.sleep(5)
-    st.experimental_rerun()
+    st.rerun()
 
 def list_calls(api_key:str, params:Dict[str,Any]=None)->List[Dict[str,Any]]:
     url=f"{VAPI_BASE_URL}/call"
@@ -319,41 +621,70 @@ if fetch_now or auto:
         try:
             latest=get_latest_call_for_assistant(vapi_api_key,a_id,started_after)
             if not latest:
-                st.info("No finished calls yet. Keep this section open and refresh.")
+                st.info("⏳ No completed interviews found yet. The feedback will appear here once the interview is finished.")
+                if st.session_state.interview_status == "active":
+                    st.info("🔴 Interview appears to be in progress. Feedback will be generated automatically when completed.")
             else:
                 call=fetch_call(vapi_api_key, latest["id"])
                 analysis=call.get("analysis") or {}
                 summary=analysis.get("summary") or ""
                 success=analysis.get("successEvaluation") or {}
                 df=flatten_feedback_for_table(call)
-                st.subheader("Interview Feedback")
+                
+                st.subheader("📊 Interview Performance Report")
+                st.success("✅ Interview completed and analyzed!")
+                
                 if summary:
-                    st.write(summary)
+                    st.markdown(f"**📝 Interview Summary:**\n{summary}")
+                    st.markdown("---")
+                
+                st.markdown("**📋 Detailed Feedback:**")
                 st.table(df)
+                
+                # Overall rating with color coding
                 rating=None; justification=None
                 if isinstance(success, dict):
                     rating=success.get("overallRating")
                     justification=success.get("justification") or success.get("reason")
                 elif success:
                     rating=str(success)
+                
                 if rating:
-                    msg=f"Overall Success Rating: {rating}"
                     if rating in ["Highly Suitable","Suitable"]:
-                        st.success(msg)
+                        st.success(f"🎉 **Overall Assessment: {rating}**")
                     elif rating in ["Borderline"]:
-                        st.warning(msg)
+                        st.warning(f"⚠️ **Overall Assessment: {rating}**")
                     elif rating in ["Unsuitable"]:
-                        st.error(msg)
+                        st.error(f"❌ **Overall Assessment: {rating}**")
                     else:
-                        st.info(msg)
+                        st.info(f"📊 **Overall Assessment: {rating}**")
+                    
                     if justification:
-                        st.caption(justification)
-                artifact=call.get("artifact") or {}
-                rec=(artifact.get("recording") or {}).get("mono") or {}
-                if rec.get("combinedUrl"): st.link_button("Download Recording", rec["combinedUrl"], type="secondary")
-                if artifact.get("transcript"):
-                    with st.expander("Transcript"): st.text(artifact["transcript"])
+                        st.markdown(f"**💡 Justification:** {justification}")
+                
+                # Additional resources
+                st.markdown("---")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    artifact=call.get("artifact") or {}
+                    rec=(artifact.get("recording") or {}).get("mono") or {}
+                    if rec.get("combinedUrl"): 
+                        st.link_button("🎵 Download Recording", rec["combinedUrl"], type="secondary", use_container_width=True)
+                
+                with col2:
+                    if artifact.get("transcript"):
+                        with st.expander("📄 View Full Transcript"):
+                            st.text_area("Interview Transcript", artifact["transcript"], height=300)
+                
+                # Update status to completed
+                if st.session_state.interview_status in ["starting", "active"]:
+                    st.session_state.interview_status = "completed"
+                    
         except Exception as e:
-            st.error(str(e))
+            st.error(f"❌ Error fetching feedback: {str(e)}")
+            st.session_state.interview_status = "error"
 
-st.markdown("---"); st.caption("© Drishti AI Team")
+st.markdown("---")
+st.caption("© Drishti AI Team | UPSC Mock Interview Platform")
+st.caption("🔒 All interviews are recorded and analyzed for assessment purposes only.")
