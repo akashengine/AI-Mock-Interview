@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UPSC Interview – Voice Call</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 16px; background: #0b0b0b; color: #f2f2f2; }
+      h3 { margin: 0 0 8px 0; }
+      #controls { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px 0; }
+      button { background: #14B8A6; color: #001314; border: 0; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
+      button.secondary { background: #333; color: #eee; }
+      pre#log { height: 180px; overflow: auto; background: #111; padding: 8px; border-radius: 6px; margin: 0; }
+      a { color: #22d3ee; }
+    </style>
+  </head>
+  <body>
+    <h3>UPSC Interview – Voice Call</h3>
+    <p id="hint">Please allow microphone access when prompted.</p>
+
+    <div id="controls">
+      <button id="start">Start Call</button>
+      <button id="end" class="secondary">End Call</button>
+      <button id="mute" class="secondary">Mute</button>
+      <button id="unmute" class="secondary">Unmute</button>
+    </div>
+    <pre id="log"></pre>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const apiKey = params.get('apiKey');
+      const assistantId = params.get('assistant');
+
+      function log(m) {
+        const el = document.getElementById('log');
+        el.textContent += m + '\n';
+        el.scrollTop = el.scrollHeight;
+      }
+
+      if (!apiKey || !assistantId) {
+        document.getElementById('hint').textContent = 'Missing apiKey or assistant in URL params.';
+      }
+
+      function load(src){
+        return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.async = true; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+      }
+
+      (async () => {
+        try {
+          await load('https://unpkg.com/@vapi-ai/web/dist/index.umd.js');
+          const Vapi = window.Vapi && window.Vapi.default ? window.Vapi.default : window.Vapi;
+          const vapi = new Vapi(apiKey);
+          window._vapi = vapi;
+          document.getElementById('start').onclick = () => vapi.start(assistantId);
+          document.getElementById('end').onclick = () => vapi.stop();
+          document.getElementById('mute').onclick = () => vapi.mute();
+          document.getElementById('unmute').onclick = () => vapi.unmute();
+          vapi.on('call-start', () => log('call-start'));
+          vapi.on('call-end', () => log('call-end'));
+          vapi.on('message', (m) => { if (m && m.type === 'transcript') { log((m.role || 'user') + ': ' + (m.transcript || '')); } });
+          log('Web SDK ready. Click Start Call and allow mic access.');
+        } catch (e) {
+          log('Failed to load Web SDK: ' + e);
+        }
+      })();
+    </script>
+  </body>
+</html>
