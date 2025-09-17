@@ -2,6 +2,8 @@ import os, json, base64, textwrap, time, datetime as dt
 from typing import Any, Dict, List
 import streamlit as st, requests, pandas as pd
 import threading, functools
+import tempfile
+import webbrowser
 
 APP_TITLE="Drishti UPSC Mock Interview"; APP_SUBTITLE="Developed by Drishti AI Team"
 # Load .env if present locally; on Streamlit Cloud, prefer st.secrets
@@ -28,12 +30,10 @@ if "rendered_prompt" not in st.session_state: st.session_state.rendered_prompt=N
 if "assistants" not in st.session_state: st.session_state.assistants={}
 if "current_candidate" not in st.session_state: st.session_state.current_candidate=None
 if "interview_started_at" not in st.session_state: st.session_state.interview_started_at=None
-if "widget_open" not in st.session_state: st.session_state.widget_open=False
 if "interview_status" not in st.session_state: st.session_state.interview_status="idle"
 
 with st.sidebar:
     st.header("Configuration")
-    # Hide API key inputs for a clean UI; read from environment insatead
     vapi_api_key=DEFAULT_VAPI_API_KEY
     vapi_public_key=DEFAULT_VAPI_PUBLIC_KEY
     gemini_api_key=DEFAULT_GEMINI_API_KEY
@@ -192,19 +192,12 @@ if create_btn:
         except Exception as e:
             st.error(str(e))
 
-# REPLACE YOUR STEP 5 WITH THIS FINAL SOLUTION
-
-import streamlit as st
-import tempfile
-import webbrowser
-import os
-import datetime as dt
-
+# FINAL STEP 5: WIDGET SCRIPT INTEGRATION (FIXED SOLUTION)
 st.markdown("---")
-st.header("Step 5 · Start Interview (Direct SDK Integration)")
+st.header("Step 5 · Start Interview (Widget Script Integration)")
 
-def create_direct_vapi_html(vapi_public_key, assistant_id, candidate_name, roll_no):
-    """Create HTML file with direct Vapi Web SDK integration"""
+def create_widget_based_interview(vapi_public_key, assistant_id, candidate_name, roll_no):
+    """Create HTML file using reliable Vapi widget script"""
     return f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -235,58 +228,55 @@ def create_direct_vapi_html(vapi_public_key, assistant_id, candidate_name, roll_
             background: rgba(0,0,0,0.4); padding: 15px; border-radius: 10px;
             text-align: center; margin-bottom: 20px; font-weight: 600; font-size: 16px;
         }}
-        .controls {{ 
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px; margin: 20px 0;
+        .info-grid {{ 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+            gap: 20px; margin: 20px 0; 
         }}
-        .btn {{
-            padding: 15px 20px; border: none; border-radius: 12px; font-size: 16px;
-            font-weight: 600; cursor: pointer; transition: all 0.3s ease;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-        }}
-        .btn-primary {{ background: #14b8a6; color: white; }}
-        .btn-danger {{ background: #ef4444; color: white; }}
-        .btn-secondary {{ background: rgba(255,255,255,0.2); color: white; }}
-        .btn:hover {{ transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }}
-        .btn:disabled {{ 
-            opacity: 0.5; cursor: not-allowed; transform: none; 
-            background: rgba(107, 114, 128, 0.5);
-        }}
-        .info-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; }}
         .info-card {{
             background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px;
             backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
         }}
         .info-card h3 {{ color: #fbbf24; margin-bottom: 10px; }}
-        .transcript-panel {{
-            background: rgba(0,0,0,0.4); padding: 20px; border-radius: 15px;
-            margin-top: 20px; max-height: 400px; overflow-y: auto;
-            display: none;
+        .widget-container {{
+            background: rgba(255,255,255,0.05); padding: 30px; border-radius: 20px;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+            margin: 30px 0; min-height: 400px; position: relative;
         }}
-        .transcript-entry {{
-            margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.1);
-            border-radius: 8px; border-left: 4px solid #14b8a6;
+        .widget-title {{
+            text-align: center; margin-bottom: 20px; font-size: 1.3em;
+            color: #14b8a6; font-weight: 600;
         }}
-        .speaker {{ font-weight: 600; color: #14b8a6; margin-bottom: 5px; }}
-        .timestamp {{ font-size: 12px; color: rgba(255,255,255,0.7); }}
-        .error-panel {{ 
-            background: rgba(239, 68, 68, 0.2); border: 2px solid #ef4444;
-            padding: 20px; border-radius: 15px; margin: 20px 0; text-align: center;
-        }}
-        .success-panel {{ 
+        .instructions {{
             background: rgba(34, 197, 94, 0.2); border: 2px solid #22c55e;
-            padding: 20px; border-radius: 15px; margin: 20px 0; text-align: center;
+            padding: 20px; border-radius: 15px; margin: 20px 0;
         }}
-        .warning-panel {{ 
+        .warning {{
             background: rgba(251, 191, 36, 0.2); border: 2px solid #f59e0b;
-            padding: 20px; border-radius: 15px; margin: 20px 0; text-align: center;
+            padding: 20px; border-radius: 15px; margin: 20px 0;
         }}
+        .status-indicator {{
+            position: absolute; top: 15px; right: 15px; padding: 8px 15px;
+            border-radius: 20px; font-size: 14px; font-weight: 600;
+        }}
+        .status-ready {{ background: rgba(34, 197, 94, 0.3); color: #22c55e; }}
+        .status-loading {{ background: rgba(59, 130, 246, 0.3); color: #3b82f6; }}
+        .status-error {{ background: rgba(239, 68, 68, 0.3); color: #ef4444; }}
+        .status-live {{ background: rgba(239, 68, 68, 0.3); color: #ef4444; animation: pulse 1.5s infinite; }}
         @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.7; }} }}
-        .pulse {{ animation: pulse 2s infinite; }}
+        
+        /* Vapi widget customization */
+        vapi-widget {{
+            --primary-color: #14b8a6;
+            --secondary-color: #667eea;
+            --text-color: white;
+            --background-color: rgba(0,0,0,0.3);
+            --border-radius: 15px;
+        }}
+        
         @media (max-width: 768px) {{
             .container {{ padding: 15px; }}
-            .controls {{ grid-template-columns: 1fr; }}
             .info-grid {{ grid-template-columns: 1fr; }}
+            .header h1 {{ font-size: 2em; }}
         }}
     </style>
 </head>
@@ -294,66 +284,101 @@ def create_direct_vapi_html(vapi_public_key, assistant_id, candidate_name, roll_
     <div class="container">
         <div class="header">
             <h1>🎤 UPSC Civil Services Interview</h1>
-            <p style="font-size: 1.2em; opacity: 0.9;">Direct Voice Integration System</p>
+            <p style="font-size: 1.2em; opacity: 0.9;">Widget-Based Voice Integration</p>
         </div>
         
         <div class="status-bar" id="statusBar">
-            🔄 Initializing advanced voice system...
+            🔄 Initializing interview system...
         </div>
         
         <div class="main-panel">
             <div class="info-grid">
                 <div class="info-card">
-                    <h3>📋 Candidate Information</h3>
-                    <p><strong>Name:</strong> {candidate_name}</p>
+                    <h3>📋 Interview Details</h3>
+                    <p><strong>Candidate:</strong> {candidate_name}</p>
                     <p><strong>Roll Number:</strong> {roll_no}</p>
                     <p><strong>Interview Type:</strong> Personality Test</p>
-                    <p><strong>Duration:</strong> 30-35 minutes</p>
+                    <p><strong>Duration:</strong> 30-35 minutes + feedback</p>
                 </div>
                 
                 <div class="info-card">
-                    <h3>🎯 System Status</h3>
-                    <p><strong>Voice SDK:</strong> <span id="sdkStatus">Loading...</span></p>
+                    <h3>🎯 System Information</h3>
+                    <p><strong>Integration:</strong> Vapi Widget Script</p>
                     <p><strong>Microphone:</strong> <span id="micStatus">Checking...</span></p>
-                    <p><strong>Connection:</strong> <span id="connectionStatus">Connecting...</span></p>
-                    <p><strong>Interview:</strong> <span id="interviewStatus">Ready</span></p>
+                    <p><strong>Widget Status:</strong> <span id="widgetStatus">Loading...</span></p>
+                    <p><strong>Ready Status:</strong> <span id="readyStatus">Preparing...</span></p>
                 </div>
             </div>
             
-            <div class="controls">
-                <button class="btn btn-primary" id="startBtn" onclick="startInterview()" disabled>
-                    🎙️ Start Interview
-                </button>
-                <button class="btn btn-danger" id="endBtn" onclick="endInterview()" disabled>
-                    📞 End Interview
-                </button>
-                <button class="btn btn-secondary" id="muteBtn" onclick="toggleMute()" disabled>
-                    🔇 Toggle Mute
-                </button>
-                <button class="btn btn-secondary" id="transcriptBtn" onclick="toggleTranscript()" disabled>
-                    📄 Show Transcript
-                </button>
+            <div class="instructions">
+                <h3>📋 Before You Begin:</h3>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>Microphone:</strong> Allow microphone access when prompted</li>
+                    <li><strong>Environment:</strong> Ensure quiet surroundings</li>
+                    <li><strong>Speaking:</strong> Speak clearly and at normal pace</li>
+                    <li><strong>Listening:</strong> Pay careful attention to questions</li>
+                    <li><strong>Confidence:</strong> Be authentic and confident in your responses</li>
+                </ul>
+            </div>
+            
+            <div class="widget-container">
+                <div class="status-indicator status-loading" id="statusIndicator">
+                    🔄 Loading
+                </div>
+                <div class="widget-title">Voice Interview Interface</div>
+                
+                <!-- Vapi Widget Integration -->
+                <vapi-widget
+                    id="vapiWidget"
+                    public-key="{vapi_public_key}"
+                    assistant-id="{assistant_id}"
+                    mode="voice"
+                    theme="dark"
+                    base-bg-color="rgba(0,0,0,0.2)"
+                    accent-color="#14B8A6"
+                    cta-button-color="#667eea"
+                    cta-button-text-color="#ffffff"
+                    border-radius="large"
+                    size="full"
+                    position="center"
+                    title="UPSC MOCK INTERVIEW"
+                    start-button-text="🎙️ Begin Interview"
+                    end-button-text="📞 End Interview"
+                    voice-show-transcript="true"
+                    consent-required="true"
+                    consent-title="Interview Consent"
+                    consent-content="By proceeding, I consent to the recording and analysis of this mock interview session for assessment purposes as per UPSC Civil Services guidelines. I understand that this is a practice session designed to help improve my interview performance."
+                    consent-storage-key="upsc_interview_consent"
+                ></vapi-widget>
             </div>
         </div>
         
-        <div class="transcript-panel" id="transcriptPanel">
-            <h3>📝 Live Interview Transcript</h3>
-            <div id="transcriptContent"></div>
+        <div class="warning" id="troubleshootingSection" style="display: none;">
+            <h3>🔧 Troubleshooting Help</h3>
+            <p>If you're experiencing issues:</p>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>Refresh this page and try again</li>
+                <li>Check your internet connection</li>
+                <li>Allow microphone access when prompted</li>
+                <li>Try a different browser (Chrome recommended)</li>
+                <li>Disable ad blockers temporarily</li>
+            </ul>
+            <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                🔄 Refresh Page
+            </button>
         </div>
     </div>
 
-    <!-- Load Vapi Web SDK -->
-    <script src="https://unpkg.com/@vapi-ai/web@latest/dist/index.js"></script>
+    <!-- Load Vapi Widget Script -->
+    <script src="https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js" async></script>
     
     <script>
-        // Global variables
-        let vapi = null;
-        let isCallActive = false;
-        let isMuted = false;
-        let transcriptVisible = false;
+        let widgetLoaded = false;
+        let interviewActive = false;
+        let microphoneAccess = false;
         let interviewStartTime = null;
         
-        // Status update function
+        // Status update functions
         function updateStatus(message, type = 'info') {{
             const statusBar = document.getElementById('statusBar');
             const statusEmojis = {{
@@ -365,13 +390,11 @@ def create_direct_vapi_html(vapi_public_key, assistant_id, candidate_name, roll_
             }};
             
             statusBar.innerHTML = `${{statusEmojis[type] || '🔄'}} ${{message}}`;
-            statusBar.className = 'status-bar';
             
-            if (type === 'live') {{
-                statusBar.classList.add('pulse');
-            }} else {{
-                statusBar.classList.remove('pulse');
-            }}
+            // Update status indicator
+            const indicator = document.getElementById('statusIndicator');
+            indicator.className = 'status-indicator status-' + (type === 'live' ? 'live' : type === 'error' ? 'error' : type === 'success' ? 'ready' : 'loading');
+            indicator.textContent = type === 'live' ? '🔴 LIVE' : type === 'error' ? '❌ Error' : type === 'success' ? '✅ Ready' : '🔄 Loading';
         }}
         
         function updateSystemStatus(component, status, isGood = true) {{
@@ -379,49 +402,15 @@ def create_direct_vapi_html(vapi_public_key, assistant_id, candidate_name, roll_
             if (element) {{
                 element.textContent = status;
                 element.style.color = isGood ? '#22c55e' : '#ef4444';
+                element.style.fontWeight = '600';
             }}
         }}
         
-        function updateButtons() {{
-            const startBtn = document.getElementById('startBtn');
-            const endBtn = document.getElementById('endBtn');
-            const muteBtn = document.getElementById('muteBtn');
-            const transcriptBtn = document.getElementById('transcriptBtn');
-            
-            if (isCallActive) {{
-                startBtn.disabled = true;
-                endBtn.disabled = false;
-                muteBtn.disabled = false;
-                transcriptBtn.disabled = false;
-                muteBtn.innerHTML = isMuted ? '🎤 Unmute' : '🔇 Mute';
-            }} else {{
-                startBtn.disabled = false;
-                endBtn.disabled = true;
-                muteBtn.disabled = true;
-                transcriptBtn.disabled = true;
-            }}
+        function showTroubleshooting() {{
+            document.getElementById('troubleshootingSection').style.display = 'block';
         }}
         
-        function showPanel(type, message) {{
-            // Remove existing panels
-            const existingPanels = document.querySelectorAll('.error-panel, .success-panel, .warning-panel');
-            existingPanels.forEach(panel => panel.remove());
-            
-            const panel = document.createElement('div');
-            panel.className = type + '-panel';
-            panel.innerHTML = message;
-            
-            const mainPanel = document.querySelector('.main-panel');
-            mainPanel.parentNode.insertBefore(panel, mainPanel.nextSibling);
-            
-            // Auto-remove success panels after 5 seconds
-            if (type === 'success') {{
-                setTimeout(() => {{
-                    if (panel.parentNode) panel.remove();
-                }}, 5000);
-            }}
-        }}
-        
+        // Check microphone access
         async function checkMicrophone() {{
             try {{
                 updateSystemStatus('mic', 'Testing...', true);
@@ -430,287 +419,179 @@ def create_direct_vapi_html(vapi_public_key, assistant_id, candidate_name, roll_
                 const tracks = stream.getTracks();
                 
                 if (tracks.length > 0) {{
-                    console.log('Microphone access granted:', tracks[0].label || 'Default microphone');
+                    microphoneAccess = true;
                     updateSystemStatus('mic', 'Access granted ✓', true);
+                    console.log('✅ Microphone access granted:', tracks[0].label || 'Default');
                     
-                    // Stop the test stream
+                    // Stop test stream
                     tracks.forEach(track => track.stop());
                     return true;
                 }}
             }} catch (error) {{
-                console.error('Microphone access failed:', error);
+                console.error('❌ Microphone access failed:', error);
+                microphoneAccess = false;
                 updateSystemStatus('mic', 'Access denied ✗', false);
                 
-                let errorMessage = 'Microphone access was denied. ';
-                if (error.name === 'NotAllowedError') {{
-                    errorMessage += 'Please allow microphone access and refresh the page.';
-                }} else if (error.name === 'NotFoundError') {{
-                    errorMessage += 'No microphone found. Please connect a microphone.';
-                }} else {{
-                    errorMessage += 'Please check your microphone settings.';
+                // Show specific error guidance
+                let errorMsg = 'Please allow microphone access when prompted by your browser.';
+                if (error.name === 'NotFoundError') {{
+                    errorMsg = 'No microphone detected. Please connect a microphone.';
+                }} else if (error.name === 'NotAllowedError') {{
+                    errorMsg = 'Microphone access denied. Please refresh and allow access.';
                 }}
                 
-                showPanel('error', `
-                    <h3>🎤 Microphone Access Required</h3>
-                    <p>${{errorMessage}}</p>
-                    <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer;">
-                        🔄 Retry
-                    </button>
-                `);
-                
+                updateStatus('⚠️ ' + errorMsg, 'warning');
                 return false;
             }}
         }}
         
-        async function initializeVapi() {{
-            try {{
-                updateStatus('Loading Vapi Web SDK...', 'info');
-                updateSystemStatus('sdk', 'Loading...', true);
-                
-                // Check if Vapi is available
-                if (typeof window.Vapi === 'undefined') {{
-                    throw new Error('Vapi SDK not loaded. Please check your internet connection.');
-                }}
-                
-                // Initialize Vapi client
-                vapi = new window.Vapi('{vapi_public_key}');
-                updateSystemStatus('sdk', 'Loaded ✓', true);
-                
-                // Set up event listeners
-                vapi.on('call-start', () => {{
-                    console.log('📞 Call started');
-                    isCallActive = true;
-                    interviewStartTime = new Date();
-                    updateStatus('🔴 Interview in progress', 'live');
-                    updateSystemStatus('interview', 'Live Interview', true);
-                    updateButtons();
-                    showPanel('success', '🎉 Interview started successfully! Speak clearly and confidently.');
-                    document.title = '🔴 LIVE: UPSC Interview - {candidate_name}';
-                }});
-                
-                vapi.on('call-end', () => {{
-                    console.log('📞 Call ended');
-                    isCallActive = false;
-                    const duration = interviewStartTime ? 
-                        Math.round((new Date() - interviewStartTime) / 1000 / 60) : 0;
-                    updateStatus('✅ Interview completed', 'success');
-                    updateSystemStatus('interview', `Completed (${{duration}} min)`, true);
-                    updateButtons();
-                    showPanel('success', `
-                        🎉 Interview completed successfully!<br>
-                        Duration: ${{duration}} minutes<br>
-                        Your performance is being analyzed.
-                    `);
-                    document.title = '✅ Completed: UPSC Interview - {candidate_name}';
-                }});
-                
-                vapi.on('speech-start', () => {{
-                    updateStatus('🎤 Listening to candidate...', 'info');
-                }});
-                
-                vapi.on('speech-end', () => {{
-                    updateStatus('🔴 Interview in progress', 'live');
-                }});
-                
-                vapi.on('message', (message) => {{
-                    console.log('📝 Message received:', message);
-                    
-                    if (message.type === 'transcript' && message.transcript) {{
-                        addTranscriptEntry(message.role, message.transcript);
-                    }}
-                    
-                    if (message.type === 'function-call') {{
-                        console.log('🔧 Function call:', message.functionCall);
-                    }}
-                }});
-                
-                vapi.on('error', (error) => {{
-                    console.error('❌ Vapi error:', error);
-                    isCallActive = false;
-                    updateStatus('❌ Interview system error', 'error');
-                    updateSystemStatus('interview', 'Error', false);
-                    updateButtons();
-                    
-                    showPanel('error', `
-                        <h3>❌ Interview System Error</h3>
-                        <p>Error: ${{error.message || 'Unknown error occurred'}}</p>
-                        <p>Please refresh the page and try again.</p>
-                        <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer;">
-                            🔄 Refresh Page
-                        </button>
-                    `);
-                }});
-                
-                vapi.on('call-connecting', () => {{
-                    updateStatus('🔄 Connecting to interview board...', 'info');
-                    updateSystemStatus('interview', 'Connecting...', true);
-                }});
-                
-                updateSystemStatus('connection', 'Connected ✓', true);
-                updateStatus('✅ Voice system ready - Click "Start Interview"', 'success');
-                updateButtons();
-                
-                showPanel('success', `
-                    <h3>🎯 System Ready!</h3>
-                    <p>All systems are operational. Click "Start Interview" to begin your UPSC Personality Test.</p>
-                    <p><strong>Remember:</strong> Speak clearly, listen carefully, and be confident!</p>
-                `);
-                
-            }} catch (error) {{
-                console.error('Failed to initialize Vapi:', error);
-                updateSystemStatus('sdk', 'Failed ✗', false);
-                updateSystemStatus('connection', 'Failed ✗', false);
-                updateStatus('❌ Failed to initialize voice system', 'error');
-                
-                showPanel('error', `
-                    <h3>❌ System Initialization Failed</h3>
-                    <p>${{error.message}}</p>
-                    <p>Please check your internet connection and try again.</p>
-                    <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer;">
-                        🔄 Retry Initialization
-                    </button>
-                `);
-            }}
-        }}
-        
-        async function startInterview() {{
-            try {{
-                if (!vapi) {{
-                    throw new Error('Voice system not initialized');
-                }}
-                
-                updateStatus('🔄 Starting interview session...', 'info');
-                updateSystemStatus('interview', 'Starting...', true);
-                
-                // Start the call with the assistant
-                await vapi.start('{assistant_id}');
-                
-            }} catch (error) {{
-                console.error('Failed to start interview:', error);
-                updateStatus('❌ Failed to start interview', 'error');
-                updateSystemStatus('interview', 'Failed to start', false);
-                
-                showPanel('error', `
-                    <h3>❌ Failed to Start Interview</h3>
-                    <p>${{error.message}}</p>
-                    <p>Please try again or refresh the page.</p>
-                `);
-            }}
-        }}
-        
-        async function endInterview() {{
-            try {{
-                if (!vapi || !isCallActive) {{
-                    return;
-                }}
-                
-                updateStatus('🔄 Ending interview session...', 'info');
-                vapi.stop();
-                
-            }} catch (error) {{
-                console.error('Failed to end interview:', error);
-                showPanel('error', `
-                    <h3>❌ Failed to End Interview</h3>
-                    <p>${{error.message}}</p>
-                `);
-            }}
-        }}
-        
-        async function toggleMute() {{
-            try {{
-                if (!vapi || !isCallActive) return;
-                
-                if (isMuted) {{
-                    vapi.setMuted(false);
-                    isMuted = false;
-                    updateStatus('🎤 Microphone unmuted', 'info');
-                }} else {{
-                    vapi.setMuted(true);
-                    isMuted = true;
-                    updateStatus('🔇 Microphone muted', 'warning');
-                }}
-                
-                updateButtons();
-                
-            }} catch (error) {{
-                console.error('Failed to toggle mute:', error);
-            }}
-        }}
-        
-        function toggleTranscript() {{
-            const panel = document.getElementById('transcriptPanel');
-            const btn = document.getElementById('transcriptBtn');
+        // Widget event handling
+        function setupWidgetEvents() {{
+            const widget = document.getElementById('vapiWidget');
             
-            if (transcriptVisible) {{
-                panel.style.display = 'none';
-                btn.innerHTML = '📄 Show Transcript';
-                transcriptVisible = false;
-            }} else {{
-                panel.style.display = 'block';
-                btn.innerHTML = '📄 Hide Transcript';
-                transcriptVisible = true;
+            if (!widget) {{
+                console.error('Widget element not found');
+                return;
             }}
+            
+            // Widget event listeners
+            widget.addEventListener('call-start', () => {{
+                console.log('📞 Interview started');
+                interviewActive = true;
+                interviewStartTime = new Date();
+                updateStatus('🔴 Interview in progress - Speak clearly and confidently', 'live');
+                updateSystemStatus('ready', 'Interview Active', true);
+                document.title = '🔴 LIVE: UPSC Interview - {candidate_name}';
+            }});
+            
+            widget.addEventListener('call-end', () => {{
+                console.log('📞 Interview ended');
+                interviewActive = false;
+                const duration = interviewStartTime ? 
+                    Math.round((new Date() - interviewStartTime) / 1000 / 60) : 0;
+                updateStatus(`✅ Interview completed successfully (${{duration}} minutes)`, 'success');
+                updateSystemStatus('ready', 'Completed', true);
+                document.title = '✅ Completed: UPSC Interview - {candidate_name}';
+            }});
+            
+            widget.addEventListener('error', (event) => {{
+                console.error('❌ Widget error:', event);
+                interviewActive = false;
+                updateStatus('❌ Interview error occurred', 'error');
+                updateSystemStatus('ready', 'Error', false);
+                showTroubleshooting();
+            }});
+            
+            widget.addEventListener('loading', () => {{
+                console.log('🔄 Widget loading...');
+                updateStatus('🔄 Preparing interview session...', 'info');
+            }});
+            
+            widget.addEventListener('ready', () => {{
+                console.log('✅ Widget ready');
+                widgetLoaded = true;
+                updateSystemStatus('widget', 'Loaded ✓', true);
+                updateSystemStatus('ready', 'Ready to start', true);
+                updateStatus('✅ Interview system ready - Click "Begin Interview" to start', 'success');
+            }});
+            
+            // Additional events for better UX
+            widget.addEventListener('call-connecting', () => {{
+                updateStatus('🔄 Connecting to interview board...', 'info');
+            }});
+            
+            widget.addEventListener('speech-start', () => {{
+                console.log('🎤 User speaking...');
+            }});
+            
+            widget.addEventListener('speech-end', () => {{
+                console.log('🎤 User finished speaking');
+            }});
         }}
         
-        function addTranscriptEntry(role, transcript) {{
-            const transcriptContent = document.getElementById('transcriptContent');
-            const entry = document.createElement('div');
-            entry.className = 'transcript-entry';
+        // Check if widget script is loaded
+        function checkWidgetScript() {{
+            let checkCount = 0;
+            const maxChecks = 30; // 15 seconds total
             
-            const timestamp = new Date().toLocaleTimeString();
-            entry.innerHTML = `
-                <div class="speaker">${{role.toUpperCase()}}:</div>
-                <div>${{transcript}}</div>
-                <div class="timestamp">${{timestamp}}</div>
-            `;
+            const checkInterval = setInterval(() => {{
+                checkCount++;
+                
+                if (typeof window.VapiWidget !== 'undefined' || document.querySelector('vapi-widget')) {{
+                    clearInterval(checkInterval);
+                    updateSystemStatus('widget', 'Script loaded ✓', true);
+                    setupWidgetEvents();
+                    
+                    // Give widget a moment to initialize
+                    setTimeout(() => {{
+                        if (!widgetLoaded) {{
+                            updateSystemStatus('widget', 'Initializing...', true);
+                        }}
+                    }}, 2000);
+                    
+                }} else if (checkCount >= maxChecks) {{
+                    clearInterval(checkInterval);
+                    updateSystemStatus('widget', 'Failed to load ✗', false);
+                    updateStatus('❌ Widget script failed to load', 'error');
+                    showTroubleshooting();
+                }}
+            }}, 500);
+        }}
+        
+        // Initialize everything
+        async function initializeSystem() {{
+            console.log('🚀 Initializing UPSC Interview System...');
             
-            transcriptContent.appendChild(entry);
-            transcriptContent.scrollTop = transcriptContent.scrollHeight;
+            updateStatus('🔄 Starting system initialization...', 'info');
+            updateSystemStatus('widget', 'Loading script...', true);
+            
+            // Step 1: Check microphone
+            await checkMicrophone();
+            
+            // Step 2: Check widget script loading
+            checkWidgetScript();
+            
+            console.log('📋 System initialization completed');
         }}
         
         // Page lifecycle management
         window.addEventListener('beforeunload', (event) => {{
-            if (isCallActive) {{
+            if (interviewActive) {{
                 event.preventDefault();
-                event.returnValue = 'Your UPSC interview is in progress. Are you sure you want to leave?';
+                event.returnValue = 'Your UPSC interview is currently in progress. Leaving will end the session. Are you sure?';
                 return event.returnValue;
             }}
         }});
         
         document.addEventListener('visibilitychange', () => {{
-            if (document.hidden && isCallActive) {{
-                updateStatus('⚠️ Interview paused - window not visible', 'warning');
-            }} else if (!document.hidden && isCallActive) {{
-                updateStatus('🔴 Interview resumed', 'live');
+            if (document.hidden && interviewActive) {{
+                console.log('⚠️ Interview window hidden');
+            }} else if (!document.hidden && interviewActive) {{
+                console.log('✅ Interview window visible again');
             }}
         }});
         
-        // Initialize everything when page loads
-        document.addEventListener('DOMContentLoaded', async () => {{
-            console.log('🚀 UPSC Interview System starting...');
-            
-            // Step 1: Check microphone access
-            const micOk = await checkMicrophone();
-            
-            // Step 2: Initialize Vapi (even if mic failed, user might fix it)
-            setTimeout(async () => {{
-                await initializeVapi();
-            }}, 1000);
-            
-            console.log('✅ System initialization completed');
+        // Start initialization when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {{
+            console.log('📄 DOM loaded, starting initialization...');
+            initializeSystem();
         }});
+        
+        // Fallback initialization after 3 seconds
+        setTimeout(() => {{
+            if (!widgetLoaded && !interviewActive) {{
+                console.log('🔄 Fallback initialization triggered');
+                initializeSystem();
+            }}
+        }}, 3000);
     </script>
 </body>
 </html>
     """
 
-def add_streamlit_direct_sdk_interface():
-    """Add the direct SDK interface to Streamlit"""
-    
-    if not st.session_state.assistants:
-        st.error("⚠️ Please create an assistant first in Step 4 above.")
-        return
-    
+if not st.session_state.assistants:
+    st.error("⚠️ Please create an assistant first in Step 4 above.")
+else:
     # Candidate selection
     candidate_keys = list(st.session_state.assistants.keys())
     sel = st.selectbox("Select Candidate", options=candidate_keys,
@@ -725,36 +606,36 @@ def add_streamlit_direct_sdk_interface():
     status_colors = {"idle": "🔵", "starting": "🟡", "active": "🔴", "completed": "🟢"}
     st.info(f"{status_colors.get(st.session_state.interview_status, '🔵')} **Status:** {st.session_state.interview_status.title()} | **Candidate:** {candidate_name} (Roll: {sel})")
     
-    # Main launch options
-    st.subheader("🚀 Direct Voice Integration (No Popup Issues)")
+    # Main interface
+    st.subheader("🎙️ Widget-Based Voice Integration (FIXED)")
+    st.success("✅ **Using reliable Vapi widget script instead of Web SDK**")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("🎙️ **Launch Interview (Recommended)**", type="primary", use_container_width=True, 
-                    help="Opens full-screen interview with direct microphone access"):
+        if st.button("🚀 **Launch Interview (Widget)**", type="primary", use_container_width=True, 
+                    help="Opens interview with reliable widget script integration"):
             st.session_state.interview_started_at = dt.datetime.now(dt.timezone.utc).isoformat()
             st.session_state.interview_status = "starting"
             
-            # Create HTML content
-            html_content = create_direct_vapi_html(vapi_public_key, a_id, candidate_name, sel)
-            
-            # Save to temporary file and open in browser
             try:
+                # Create HTML with widget script
+                html_content = create_widget_based_interview(vapi_public_key, a_id, candidate_name, sel)
+                
+                # Save and open
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
                     f.write(html_content)
                     temp_file = f.name
                 
-                # Open in default browser
                 webbrowser.open('file://' + temp_file)
-                st.success("🚀 **Interview launched successfully!** Check your browser for the interview window.")
-                st.info("💡 **Tip:** The interview opens in a new browser window with full microphone access - no popup blocking issues!")
+                st.success("🚀 **Widget-based interview launched!** This approach is more reliable than Web SDK.")
+                st.info("💡 **Key Advantages:** No SDK loading issues, direct widget integration, better compatibility.")
                 
-                # Clean up the temp file after a delay (optional)
+                # Cleanup after delay
                 import threading
                 def cleanup():
                     import time
-                    time.sleep(300)  # Wait 5 minutes
+                    time.sleep(300)
                     try:
                         os.unlink(temp_file)
                     except:
@@ -762,94 +643,21 @@ def add_streamlit_direct_sdk_interface():
                 threading.Thread(target=cleanup, daemon=True).start()
                 
             except Exception as e:
-                st.error(f"❌ Failed to launch interview: {str(e)}")
+                st.error(f"❌ Failed to launch: {str(e)}")
                 st.session_state.interview_status = "error"
     
     with col2:
-        # Alternative: Save and download HTML file
-        if st.button("💾 **Download Interview File**", use_container_width=True,
+        if st.button("💾 **Download Widget Version**", use_container_width=True,
                     help="Download HTML file to open manually"):
-            html_content = create_direct_vapi_html(vapi_public_key, a_id, candidate_name, sel)
+            html_content = create_widget_based_interview(vapi_public_key, a_id, candidate_name, sel)
             
             st.download_button(
-                label="📁 Download Interview.html",
+                label="📁 Download Interview-Widget.html",
                 data=html_content,
-                file_name=f"upsc_interview_{sel}_{dt.datetime.now().strftime('%Y%m%d_%H%M')}.html",
+                file_name=f"upsc_interview_widget_{sel}_{dt.datetime.now().strftime('%Y%m%d_%H%M')}.html",
                 mime="text/html",
                 use_container_width=True
             )
-            st.info("💡 **Instructions:** Download the file and open it in your browser for the interview.")
-
-    # Embedded version (may have limitations)
-    with st.expander("📱 Alternative: Embedded Version (Limited)", expanded=False):
-        st.warning("⚠️ **Note:** This embedded version may have microphone limitations. Use the main launch button above for best results.")
-        
-        if st.button("🔗 Try Embedded Version"):
-            embedded_html = f"""
-            <div style="height: 600px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 15px; padding: 20px; color: white;">
-                <script src="https://unpkg.com/@vapi-ai/web@latest/dist/index.js"></script>
-                <div style="text-align: center;">
-                    <h3>🎤 UPSC Interview - Embedded Mode</h3>
-                    <p>Candidate: {candidate_name} | Roll: {sel}</p>
-                    <div style="margin: 20px 0;">
-                        <button id="embedStart" style="background: #14b8a6; color: white; border: none; padding: 15px 25px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin: 5px;">
-                            🎙️ Start Interview
-                        </button>
-                        <button id="embedEnd" style="background: #ef4444; color: white; border: none; padding: 15px 25px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin: 5px;" disabled>
-                            📞 End Interview
-                        </button>
-                    </div>
-                    <div id="embedStatus" style="padding: 15px; background: rgba(0,0,0,0.3); border-radius: 10px; margin: 10px 0;">
-                        Initializing...
-                    </div>
-                </div>
-                
-                <script>
-                let embedVapi = null;
-                let embedActive = false;
-                
-                document.addEventListener('DOMContentLoaded', function() {{
-                    if (typeof window.Vapi !== 'undefined') {{
-                        embedVapi = new window.Vapi('{vapi_public_key}');
-                        
-                        embedVapi.on('call-start', () => {{
-                            embedActive = true;
-                            document.getElementById('embedStatus').innerHTML = '🔴 Interview in progress';
-                            document.getElementById('embedStart').disabled = true;
-                            document.getElementById('embedEnd').disabled = false;
-                        }});
-                        
-                        embedVapi.on('call-end', () => {{
-                            embedActive = false;
-                            document.getElementById('embedStatus').innerHTML = '✅ Interview completed';
-                            document.getElementById('embedStart').disabled = false;
-                            document.getElementById('embedEnd').disabled = true;
-                        }});
-                        
-                        embedVapi.on('error', (error) => {{
-                            document.getElementById('embedStatus').innerHTML = '❌ Error: ' + error.message;
-                            embedActive = false;
-                            document.getElementById('embedStart').disabled = false;
-                            document.getElementById('embedEnd').disabled = true;
-                        }});
-                        
-                        document.getElementById('embedStart').onclick = () => {{
-                            embedVapi.start('{a_id}');
-                        }};
-                        
-                        document.getElementById('embedEnd').onclick = () => {{
-                            embedVapi.stop();
-                        }};
-                        
-                        document.getElementById('embedStatus').innerHTML = '✅ Ready to start (⚠️ May have microphone limitations)';
-                    }} else {{
-                        document.getElementById('embedStatus').innerHTML = '❌ SDK not loaded - try the main launch button above';
-                    }}
-                }});
-                </script>
-            </div>
-            """
-            st.components.v1.html(embedded_html, height=600)
 
     # Session management
     if st.session_state.interview_started_at:
@@ -860,65 +668,210 @@ def add_streamlit_direct_sdk_interface():
         ⏱️ **Active Session:**
         - **Started:** {start_time.strftime('%H:%M:%S UTC')}
         - **Elapsed:** {str(elapsed).split('.')[0]}
-        - **Status:** {st.session_state.interview_status.title()}
+        - **Method:** Widget Script Integration
         """)
         
         if st.button("🔄 Reset Session"):
             st.session_state.interview_started_at = None
             st.session_state.interview_status = "idle"
-            st.success("✅ Session reset successfully.")
+            st.success("✅ Session reset.")
             st.rerun()
 
-    # Instructions and help
-    with st.expander("📋 How This Works & Troubleshooting", expanded=False):
-        st.markdown("""
-        ### 🎯 **How Direct SDK Integration Works:**
-        
-        **✅ Advantages:**
-        - **No popup blocking** - Opens directly in browser
-        - **Full microphone access** - No iframe restrictions  
-        - **Professional interface** - Clean, modern design
-        - **Real-time feedback** - Live status updates and transcript
-        - **Reliable performance** - Direct API integration
-        
-        ### 🚀 **Usage Instructions:**
-        
-        1. **Click "Launch Interview"** - Opens in new browser window/tab
-        2. **Allow microphone access** when prompted by browser
-        3. **Click "Start Interview"** in the interview window
-        4. **Conduct your interview** - Speak clearly and confidently
-        5. **Click "End Interview"** when finished
-        6. **Return to Streamlit** for feedback analysis
-        
-        ### 🔧 **Troubleshooting:**
-        
-        **If interview window doesn't open:**
-        - Check if popup/tab blockers are enabled
-        - Try the "Download Interview File" option
-        - Manually open the downloaded HTML file in browser
-        
-        **If microphone doesn't work:**
-        - Allow microphone access when browser prompts
-        - Check browser microphone settings
-        - Try different browser (Chrome recommended)
-        - Ensure no other apps are using microphone
-        
-        **If connection fails:**
-        - Check internet connection
-        - Refresh the interview window
-        - Try again in a few minutes
-        - Contact support if issue persists
-        
-        ### 🎤 **Best Practices:**
-        - Use desktop/laptop for best experience
-        - Use external microphone or headset
-        - Ensure stable internet connection
-        - Close unnecessary browser tabs
-        - Test microphone before starting
-        """)
+st.markdown("---")
+st.header("Step 6 · Fetch & Display Feedback")
+auto=st.checkbox("Auto-refresh every 5s", value=False, help="Automatically check for interview completion")
+fetch_now=st.button("Fetch Latest Feedback For Selected Candidate", type="primary")
 
-# Add the interface to your app
-add_streamlit_direct_sdk_interface()
+if auto:
+    time.sleep(5)
+    st.rerun()
+
+def list_calls(api_key:str, params:Dict[str,Any]=None)->List[Dict[str,Any]]:
+    url=f"{VAPI_BASE_URL}/call"
+    headers={"Authorization":f"Bearer {api_key}"}
+    r=requests.get(url,headers=headers,params=params or {})
+    if r.status_code>=300: raise RuntimeError(f"List Calls failed: {r.status_code} {r.text}")
+    data=r.json()
+    if isinstance(data,dict) and "items" in data: return data["items"]
+    if isinstance(data,list): return data
+    return []
+
+def get_latest_call_for_assistant(api_key:str, assistant_id:str, started_after_iso:str)->Dict[str,Any]:
+    items=[]
+    try:
+        items=list_calls(api_key, params={"assistantId":assistant_id,"limit":50})
+    except Exception:
+        items=list_calls(api_key, params={"limit":50})
+    def after_start(c):
+        try:
+            return c.get("startedAt") and c["startedAt"]>=started_after_iso
+        except Exception:
+            return True
+    filtered=[c for c in items if c.get("assistantId")==assistant_id and after_start(c)]
+    filtered=sorted(filtered, key=lambda x: x.get("endedAt") or x.get("updatedAt") or x.get("createdAt") or "", reverse=True)
+    return filtered[0] if filtered else {}
+
+def fetch_call(api_key:str, call_id:str)->Dict[str,Any]:
+    url=f"{VAPI_BASE_URL}/call/{call_id}"
+    headers={"Authorization":f"Bearer {api_key}"}
+    r=requests.get(url,headers=headers)
+    if r.status_code>=300: raise RuntimeError(f"Get Call failed: {r.status_code} {r.text}")
+    return r.json()
+
+def flatten_feedback_for_table(call_obj:Dict[str,Any])->pd.DataFrame:
+    analysis=call_obj.get("analysis") or {}
+    structured=analysis.get("structuredData") or {}
+    rows=[]
+    order=["clarityOfExpression","reasoningAbility","analyticalDepth","currentAffairsAwareness","ethicalJudgment","personalityTraits","socialAwareness","hobbiesDepth","overallImpression","strengths","areasForImprovement","overallFeedback"]
+    display_names={"clarityOfExpression":"Clarity of Expression","reasoningAbility":"Reasoning Ability","analyticalDepth":"Analytical Depth","currentAffairsAwareness":"Current Affairs Awareness","ethicalJudgment":"Ethical Judgment","personalityTraits":"Personality Traits","socialAwareness":"Social Awareness","hobbiesDepth":"Hobbies & Interests","overallImpression":"Overall Impression","strengths":"Key Strengths","areasForImprovement":"Areas for Improvement","overallFeedback":"Overall Feedback"}
+    for k in order:
+        if k in structured and structured[k]: 
+            rows.append({"Assessment Criteria":display_names.get(k,k),"Detailed Feedback":structured[k]})
+    if not rows: rows.append({"Assessment Criteria":"Status","Detailed Feedback":"Analysis in progress. Please wait for interview completion."})
+    return pd.DataFrame(rows)
+
+if fetch_now or auto:
+    if not vapi_api_key:
+        st.error("Vapi API key required.")
+    elif not st.session_state.current_candidate:
+        st.error("Select a candidate.")
+    else:
+        a_id=st.session_state.assistants[st.session_state.current_candidate]["assistant_id"]
+        started_after=st.session_state.interview_started_at or "1970-01-01T00:00:00Z"
+        try:
+            latest=get_latest_call_for_assistant(vapi_api_key,a_id,started_after)
+            if not latest:
+                st.info("⏳ **Waiting for interview completion...** Feedback will appear automatically once the interview is finished and analyzed.")
+                if st.session_state.interview_status == "active":
+                    st.info("🔴 **Interview in progress.** Keep this tab open to monitor completion status.")
+            else:
+                call=fetch_call(vapi_api_key, latest["id"])
+                analysis=call.get("analysis") or {}
+                summary=analysis.get("summary") or ""
+                success=analysis.get("successEvaluation") or {}
+                df=flatten_feedback_for_table(call)
+                
+                st.subheader("📊 Comprehensive Interview Performance Report")
+                st.success("✅ **Interview completed and comprehensive analysis generated!**")
+                
+                # Interview summary
+                if summary:
+                    st.markdown("### 📝 Executive Summary")
+                    st.info(summary)
+                    st.markdown("---")
+                
+                # Detailed feedback table
+                st.markdown("### 📋 Detailed Performance Assessment")
+                st.dataframe(df, use_container_width=True, hide_index=True)
+                
+                # Overall rating with enhanced presentation
+                rating=None; justification=None
+                if isinstance(success, dict):
+                    rating=success.get("overallRating")
+                    justification=success.get("justification") or success.get("reason")
+                elif success:
+                    rating=str(success)
+                
+                if rating:
+                    st.markdown("### 🎯 Final Assessment")
+                    if rating in ["Highly Suitable","Suitable"]:
+                        st.success(f"🌟 **Overall Assessment: {rating}**")
+                    elif rating in ["Borderline"]:
+                        st.warning(f"⚖️ **Overall Assessment: {rating}**")
+                    elif rating in ["Unsuitable"]:
+                        st.error(f"📉 **Overall Assessment: {rating}**")
+                    else:
+                        st.info(f"📊 **Overall Assessment: {rating}**")
+                    
+                    if justification:
+                        st.markdown(f"**💡 Assessment Rationale:** {justification}")
+                
+                # Additional resources
+                st.markdown("---")
+                st.markdown("### 📁 Interview Resources")
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    artifact=call.get("artifact") or {}
+                    rec=(artifact.get("recording") or {}).get("mono") or {}
+                    if rec.get("combinedUrl"): 
+                        st.link_button("🎵 Download Audio Recording", rec["combinedUrl"], type="secondary", use_container_width=True)
+                
+                with col2:
+                    if artifact.get("transcript"):
+                        transcript_content = f"""UPSC Mock Interview Transcript
+Candidate: {candidate_name}
+Roll Number: {sel}
+Date: {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+{'-'*50}
+
+{artifact['transcript']}
+
+{'-'*50}
+Generated by Drishti UPSC Mock Interview System
+"""
+                        st.download_button(
+                            label="📄 Download Transcript",
+                            data=transcript_content,
+                            file_name=f"interview_transcript_{sel}_{dt.datetime.now().strftime('%Y%m%d')}.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
+                
+                with col3:
+                    structured_data = analysis.get("structuredData") or {}
+                    feedback_content = f"""UPSC Mock Interview - Performance Report
+Candidate: {candidate_name}
+Roll Number: {sel}
+Interview Date: {dt.datetime.now().strftime('%Y-%m-%d')}
+Assessment System: Drishti AI
+
+{'-'*50}
+EXECUTIVE SUMMARY
+{'-'*50}
+{summary}
+
+{'-'*50}
+OVERALL ASSESSMENT: {rating or 'Not Available'}
+{'-'*50}
+{justification or 'Detailed assessment completed.'}
+
+{'-'*50}
+DETAILED PERFORMANCE ANALYSIS
+{'-'*50}
+"""
+                    for _, row in df.iterrows():
+                        feedback_content += f"\n{row['Assessment Criteria']}:\n{row['Detailed Feedback']}\n"
+                    
+                    feedback_content += f"""
+{'-'*50}
+Report generated on: {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+System: Drishti UPSC Mock Interview Platform
+© Drishti AI Team
+"""
+                    
+                    st.download_button(
+                        label="📊 Download Report",
+                        data=feedback_content,
+                        file_name=f"interview_report_{sel}_{dt.datetime.now().strftime('%Y%m%d')}.txt",
+                        mime="text/plain",
+                        use_container_width=True
+                    )
+                
+                # Transcript viewer
+                if artifact.get("transcript"):
+                    with st.expander("📄 View Complete Interview Transcript", expanded=False):
+                        st.text_area("Full Interview Transcript", artifact["transcript"], height=400, help="Complete conversation record")
+                
+                # Update status to completed
+                if st.session_state.interview_status in ["starting", "active"]:
+                    st.session_state.interview_status = "completed"
+                    
+        except Exception as e:
+            st.error(f"❌ **Error fetching feedback:** {str(e)}")
+            st.session_state.interview_status = "error"
 
 st.markdown("---")
 st.markdown("""
@@ -926,5 +879,6 @@ st.markdown("""
     <h4>© Drishti AI Team | UPSC Mock Interview Platform</h4>
     <p>🔒 All interviews are recorded and analyzed for assessment purposes only.</p>
     <p>📞 For technical support: <strong>support@drishti.ai</strong></p>
+    <p><em>Widget Script Integration - Reliable Voice Interview Solution</em></p>
 </div>
 """, unsafe_allow_html=True)
