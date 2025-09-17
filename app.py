@@ -251,6 +251,13 @@ else:
         """).strip()
         st.components.v1.html(launcher, height=0)
 
+    # External static hosting via jsDelivr (serves the repo's voice.html). Update owner/repo if forked.
+    try:
+        external_voice_url=f"https://cdn.jsdelivr.net/gh/akashengine/ai-mock-interview@main/static/voice.html?apiKey={vapi_public_key}&assistant={a_id}"
+        st.link_button("Open External Voice Page (jsDelivr)", external_voice_url, type="secondary")
+    except Exception:
+        pass
+
 st.markdown("---")
 st.header("Step 6 · Fetch & Display Feedback")
 auto=st.checkbox("Auto-refresh every 5s", value=False)
