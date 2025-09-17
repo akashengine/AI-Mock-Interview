@@ -192,926 +192,733 @@ if create_btn:
         except Exception as e:
             st.error(str(e))
 
-# FINAL ENHANCED STEP 5 WITH ALL FIXES
+# REPLACE YOUR STEP 5 WITH THIS FINAL SOLUTION
+
+import streamlit as st
+import tempfile
+import webbrowser
+import os
+import datetime as dt
+
 st.markdown("---")
-st.header("Step 5 · Start Interview")
+st.header("Step 5 · Start Interview (Direct SDK Integration)")
 
-# Helper functions
-def create_interview_url(vapi_public_key, assistant_id, candidate_name, roll_no, is_mobile=False):
-    """Generate a properly formatted interview URL"""
-    base_url = "https://cdn.jsdelivr.net/gh/akashengine/ai-mock-interview@main/static/voice.html"
-    params = {
-        'apiKey': vapi_public_key,
-        'assistant': assistant_id,
-        'candidate': candidate_name,
-        'rollNo': roll_no
-    }
-    if is_mobile:
-        params['mobile'] = 'true'
-    
-    param_string = '&'.join([f"{k}={v}" for k, v in params.items()])
-    return f"{base_url}?{param_string}"
-
-def show_popup_instructions():
-    """Browser-specific popup instructions"""
-    with st.expander("🚫 Popup Blocked? Click here for help", expanded=False):
-        tab1, tab2, tab3, tab4 = st.tabs(["Chrome", "Firefox", "Safari", "Edge"])
+def create_direct_vapi_html(vapi_public_key, assistant_id, candidate_name, roll_no):
+    """Create HTML file with direct Vapi Web SDK integration"""
+    return f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPSC Interview - {candidate_name}</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; color: white; padding: 20px;
+        }}
+        .container {{ max-width: 1000px; margin: 0 auto; }}
+        .header {{ text-align: center; margin-bottom: 30px; }}
+        .header h1 {{ 
+            font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #fff, #e0e7ff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }}
+        .main-panel {{
+            background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px;
+            backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.2);
+            margin-bottom: 20px;
+        }}
+        .status-bar {{
+            background: rgba(0,0,0,0.4); padding: 15px; border-radius: 10px;
+            text-align: center; margin-bottom: 20px; font-weight: 600; font-size: 16px;
+        }}
+        .controls {{ 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px; margin: 20px 0;
+        }}
+        .btn {{
+            padding: 15px 20px; border: none; border-radius: 12px; font-size: 16px;
+            font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }}
+        .btn-primary {{ background: #14b8a6; color: white; }}
+        .btn-danger {{ background: #ef4444; color: white; }}
+        .btn-secondary {{ background: rgba(255,255,255,0.2); color: white; }}
+        .btn:hover {{ transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }}
+        .btn:disabled {{ 
+            opacity: 0.5; cursor: not-allowed; transform: none; 
+            background: rgba(107, 114, 128, 0.5);
+        }}
+        .info-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0; }}
+        .info-card {{
+            background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
+        }}
+        .info-card h3 {{ color: #fbbf24; margin-bottom: 10px; }}
+        .transcript-panel {{
+            background: rgba(0,0,0,0.4); padding: 20px; border-radius: 15px;
+            margin-top: 20px; max-height: 400px; overflow-y: auto;
+            display: none;
+        }}
+        .transcript-entry {{
+            margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.1);
+            border-radius: 8px; border-left: 4px solid #14b8a6;
+        }}
+        .speaker {{ font-weight: 600; color: #14b8a6; margin-bottom: 5px; }}
+        .timestamp {{ font-size: 12px; color: rgba(255,255,255,0.7); }}
+        .error-panel {{ 
+            background: rgba(239, 68, 68, 0.2); border: 2px solid #ef4444;
+            padding: 20px; border-radius: 15px; margin: 20px 0; text-align: center;
+        }}
+        .success-panel {{ 
+            background: rgba(34, 197, 94, 0.2); border: 2px solid #22c55e;
+            padding: 20px; border-radius: 15px; margin: 20px 0; text-align: center;
+        }}
+        .warning-panel {{ 
+            background: rgba(251, 191, 36, 0.2); border: 2px solid #f59e0b;
+            padding: 20px; border-radius: 15px; margin: 20px 0; text-align: center;
+        }}
+        @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.7; }} }}
+        .pulse {{ animation: pulse 2s infinite; }}
+        @media (max-width: 768px) {{
+            .container {{ padding: 15px; }}
+            .controls {{ grid-template-columns: 1fr; }}
+            .info-grid {{ grid-template-columns: 1fr; }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 UPSC Civil Services Interview</h1>
+            <p style="font-size: 1.2em; opacity: 0.9;">Direct Voice Integration System</p>
+        </div>
         
-        with tab1:
-            st.markdown("""
-            **Chrome Instructions:**
-            1. Look for 🚫 icon in address bar (right side)
-            2. Click it → Select "Always allow popups and redirects"
-            3. Refresh page and try interview button again
-            
-            **Alternative:** Right-click interview button → "Open link in new tab"
-            """)
-            
-        with tab2:
-            st.markdown("""
-            **Firefox Instructions:**
-            1. Look for 🛡️ shield icon in address bar
-            2. Click it → Turn off "Blocking Pop-up Windows"
-            3. Refresh page and try interview button again
-            """)
-            
-        with tab3:
-            st.markdown("""
-            **Safari Instructions:**
-            1. Safari menu → Preferences → Websites
-            2. Click "Pop-up Windows" → Find your site
-            3. Change to "Allow" → Try again
-            """)
-            
-        with tab4:
-            st.markdown("""
-            **Edge Instructions:**
-            1. Look for 🚫 icon in address bar
-            2. Click it → "Always allow popups from this site"
-            3. Refresh and try again
-            """)
-
-def add_interview_instructions():
-    """Add comprehensive interview instructions"""
-    with st.expander("📋 Complete Interview Guidelines", expanded=False):
-        st.markdown("""
-        ### 🎯 Before Starting:
-        - **Environment**: Ensure you're in a quiet, well-lit room
-        - **Technology**: Use Chrome, Firefox, or Safari for best compatibility  
-        - **Internet**: Stable broadband connection recommended
-        - **Audio**: Test your microphone beforehand
-        - **Device**: Desktop/laptop preferred over mobile
+        <div class="status-bar" id="statusBar">
+            🔄 Initializing advanced voice system...
+        </div>
         
-        ### 🎤 During Interview:
-        - **Posture**: Sit upright, maintain good posture
-        - **Speech**: Speak clearly, neither too fast nor too slow
-        - **Listening**: Listen carefully to each question
-        - **Thinking**: Take a moment to think before answering
-        - **Length**: Aim for comprehensive but concise answers (2-3 minutes per response)
+        <div class="main-panel">
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>📋 Candidate Information</h3>
+                    <p><strong>Name:</strong> {candidate_name}</p>
+                    <p><strong>Roll Number:</strong> {roll_no}</p>
+                    <p><strong>Interview Type:</strong> Personality Test</p>
+                    <p><strong>Duration:</strong> 30-35 minutes</p>
+                </div>
+                
+                <div class="info-card">
+                    <h3>🎯 System Status</h3>
+                    <p><strong>Voice SDK:</strong> <span id="sdkStatus">Loading...</span></p>
+                    <p><strong>Microphone:</strong> <span id="micStatus">Checking...</span></p>
+                    <p><strong>Connection:</strong> <span id="connectionStatus">Connecting...</span></p>
+                    <p><strong>Interview:</strong> <span id="interviewStatus">Ready</span></p>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn btn-primary" id="startBtn" onclick="startInterview()" disabled>
+                    🎙️ Start Interview
+                </button>
+                <button class="btn btn-danger" id="endBtn" onclick="endInterview()" disabled>
+                    📞 End Interview
+                </button>
+                <button class="btn btn-secondary" id="muteBtn" onclick="toggleMute()" disabled>
+                    🔇 Toggle Mute
+                </button>
+                <button class="btn btn-secondary" id="transcriptBtn" onclick="toggleTranscript()" disabled>
+                    📄 Show Transcript
+                </button>
+            </div>
+        </div>
         
-        ### ⚠️ Technical Issues:
-        - If audio cuts out, the interviewer will prompt you
-        - You can ask for question repetition if needed
-        - End the call and restart if major technical issues occur
-        - Keep this Streamlit tab open for monitoring
-        
-        ### 📊 Assessment Areas:
-        1. **Clarity of Expression** - How well you communicate your thoughts
-        2. **Reasoning Ability** - Your logical thinking and problem-solving process  
-        3. **Current Affairs Knowledge** - Awareness of recent developments
-        4. **Ethical Judgment** - Your moral reasoning and integrity
-        5. **Personality Traits** - Leadership qualities, social awareness, emotional intelligence
-        6. **Optional Subject Depth** - Technical knowledge in your chosen subject
-        """)
-
-def add_mobile_detection():
-    """Mobile detection and guidance"""
-    mobile_script = """
-    <script>
-    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-        document.getElementById('mobile-warning').style.display = 'block';
-    }
-    </script>
-    
-    <div id="mobile-warning" style="display: none; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 15px; border-radius: 10px; margin: 15px 0;">
-        <strong>📱 Mobile Device Detected</strong><br>
-        For the best interview experience, we recommend using a desktop or laptop computer.
-        Mobile devices may have limited microphone functionality.
+        <div class="transcript-panel" id="transcriptPanel">
+            <h3>📝 Live Interview Transcript</h3>
+            <div id="transcriptContent"></div>
+        </div>
     </div>
+
+    <!-- Load Vapi Web SDK -->
+    <script src="https://unpkg.com/@vapi-ai/web@latest/dist/index.js"></script>
+    
+    <script>
+        // Global variables
+        let vapi = null;
+        let isCallActive = false;
+        let isMuted = false;
+        let transcriptVisible = false;
+        let interviewStartTime = null;
+        
+        // Status update function
+        function updateStatus(message, type = 'info') {{
+            const statusBar = document.getElementById('statusBar');
+            const statusEmojis = {{
+                'info': '🔄',
+                'success': '✅', 
+                'warning': '⚠️',
+                'error': '❌',
+                'live': '🔴'
+            }};
+            
+            statusBar.innerHTML = `${{statusEmojis[type] || '🔄'}} ${{message}}`;
+            statusBar.className = 'status-bar';
+            
+            if (type === 'live') {{
+                statusBar.classList.add('pulse');
+            }} else {{
+                statusBar.classList.remove('pulse');
+            }}
+        }}
+        
+        function updateSystemStatus(component, status, isGood = true) {{
+            const element = document.getElementById(component + 'Status');
+            if (element) {{
+                element.textContent = status;
+                element.style.color = isGood ? '#22c55e' : '#ef4444';
+            }}
+        }}
+        
+        function updateButtons() {{
+            const startBtn = document.getElementById('startBtn');
+            const endBtn = document.getElementById('endBtn');
+            const muteBtn = document.getElementById('muteBtn');
+            const transcriptBtn = document.getElementById('transcriptBtn');
+            
+            if (isCallActive) {{
+                startBtn.disabled = true;
+                endBtn.disabled = false;
+                muteBtn.disabled = false;
+                transcriptBtn.disabled = false;
+                muteBtn.innerHTML = isMuted ? '🎤 Unmute' : '🔇 Mute';
+            }} else {{
+                startBtn.disabled = false;
+                endBtn.disabled = true;
+                muteBtn.disabled = true;
+                transcriptBtn.disabled = true;
+            }}
+        }}
+        
+        function showPanel(type, message) {{
+            // Remove existing panels
+            const existingPanels = document.querySelectorAll('.error-panel, .success-panel, .warning-panel');
+            existingPanels.forEach(panel => panel.remove());
+            
+            const panel = document.createElement('div');
+            panel.className = type + '-panel';
+            panel.innerHTML = message;
+            
+            const mainPanel = document.querySelector('.main-panel');
+            mainPanel.parentNode.insertBefore(panel, mainPanel.nextSibling);
+            
+            // Auto-remove success panels after 5 seconds
+            if (type === 'success') {{
+                setTimeout(() => {{
+                    if (panel.parentNode) panel.remove();
+                }}, 5000);
+            }}
+        }}
+        
+        async function checkMicrophone() {{
+            try {{
+                updateSystemStatus('mic', 'Testing...', true);
+                
+                const stream = await navigator.mediaDevices.getUserMedia({{ audio: true }});
+                const tracks = stream.getTracks();
+                
+                if (tracks.length > 0) {{
+                    console.log('Microphone access granted:', tracks[0].label || 'Default microphone');
+                    updateSystemStatus('mic', 'Access granted ✓', true);
+                    
+                    // Stop the test stream
+                    tracks.forEach(track => track.stop());
+                    return true;
+                }}
+            }} catch (error) {{
+                console.error('Microphone access failed:', error);
+                updateSystemStatus('mic', 'Access denied ✗', false);
+                
+                let errorMessage = 'Microphone access was denied. ';
+                if (error.name === 'NotAllowedError') {{
+                    errorMessage += 'Please allow microphone access and refresh the page.';
+                }} else if (error.name === 'NotFoundError') {{
+                    errorMessage += 'No microphone found. Please connect a microphone.';
+                }} else {{
+                    errorMessage += 'Please check your microphone settings.';
+                }}
+                
+                showPanel('error', `
+                    <h3>🎤 Microphone Access Required</h3>
+                    <p>${{errorMessage}}</p>
+                    <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        🔄 Retry
+                    </button>
+                `);
+                
+                return false;
+            }}
+        }}
+        
+        async function initializeVapi() {{
+            try {{
+                updateStatus('Loading Vapi Web SDK...', 'info');
+                updateSystemStatus('sdk', 'Loading...', true);
+                
+                // Check if Vapi is available
+                if (typeof window.Vapi === 'undefined') {{
+                    throw new Error('Vapi SDK not loaded. Please check your internet connection.');
+                }}
+                
+                // Initialize Vapi client
+                vapi = new window.Vapi('{vapi_public_key}');
+                updateSystemStatus('sdk', 'Loaded ✓', true);
+                
+                // Set up event listeners
+                vapi.on('call-start', () => {{
+                    console.log('📞 Call started');
+                    isCallActive = true;
+                    interviewStartTime = new Date();
+                    updateStatus('🔴 Interview in progress', 'live');
+                    updateSystemStatus('interview', 'Live Interview', true);
+                    updateButtons();
+                    showPanel('success', '🎉 Interview started successfully! Speak clearly and confidently.');
+                    document.title = '🔴 LIVE: UPSC Interview - {candidate_name}';
+                }});
+                
+                vapi.on('call-end', () => {{
+                    console.log('📞 Call ended');
+                    isCallActive = false;
+                    const duration = interviewStartTime ? 
+                        Math.round((new Date() - interviewStartTime) / 1000 / 60) : 0;
+                    updateStatus('✅ Interview completed', 'success');
+                    updateSystemStatus('interview', `Completed (${{duration}} min)`, true);
+                    updateButtons();
+                    showPanel('success', `
+                        🎉 Interview completed successfully!<br>
+                        Duration: ${{duration}} minutes<br>
+                        Your performance is being analyzed.
+                    `);
+                    document.title = '✅ Completed: UPSC Interview - {candidate_name}';
+                }});
+                
+                vapi.on('speech-start', () => {{
+                    updateStatus('🎤 Listening to candidate...', 'info');
+                }});
+                
+                vapi.on('speech-end', () => {{
+                    updateStatus('🔴 Interview in progress', 'live');
+                }});
+                
+                vapi.on('message', (message) => {{
+                    console.log('📝 Message received:', message);
+                    
+                    if (message.type === 'transcript' && message.transcript) {{
+                        addTranscriptEntry(message.role, message.transcript);
+                    }}
+                    
+                    if (message.type === 'function-call') {{
+                        console.log('🔧 Function call:', message.functionCall);
+                    }}
+                }});
+                
+                vapi.on('error', (error) => {{
+                    console.error('❌ Vapi error:', error);
+                    isCallActive = false;
+                    updateStatus('❌ Interview system error', 'error');
+                    updateSystemStatus('interview', 'Error', false);
+                    updateButtons();
+                    
+                    showPanel('error', `
+                        <h3>❌ Interview System Error</h3>
+                        <p>Error: ${{error.message || 'Unknown error occurred'}}</p>
+                        <p>Please refresh the page and try again.</p>
+                        <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            🔄 Refresh Page
+                        </button>
+                    `);
+                }});
+                
+                vapi.on('call-connecting', () => {{
+                    updateStatus('🔄 Connecting to interview board...', 'info');
+                    updateSystemStatus('interview', 'Connecting...', true);
+                }});
+                
+                updateSystemStatus('connection', 'Connected ✓', true);
+                updateStatus('✅ Voice system ready - Click "Start Interview"', 'success');
+                updateButtons();
+                
+                showPanel('success', `
+                    <h3>🎯 System Ready!</h3>
+                    <p>All systems are operational. Click "Start Interview" to begin your UPSC Personality Test.</p>
+                    <p><strong>Remember:</strong> Speak clearly, listen carefully, and be confident!</p>
+                `);
+                
+            }} catch (error) {{
+                console.error('Failed to initialize Vapi:', error);
+                updateSystemStatus('sdk', 'Failed ✗', false);
+                updateSystemStatus('connection', 'Failed ✗', false);
+                updateStatus('❌ Failed to initialize voice system', 'error');
+                
+                showPanel('error', `
+                    <h3>❌ System Initialization Failed</h3>
+                    <p>${{error.message}}</p>
+                    <p>Please check your internet connection and try again.</p>
+                    <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                        🔄 Retry Initialization
+                    </button>
+                `);
+            }}
+        }}
+        
+        async function startInterview() {{
+            try {{
+                if (!vapi) {{
+                    throw new Error('Voice system not initialized');
+                }}
+                
+                updateStatus('🔄 Starting interview session...', 'info');
+                updateSystemStatus('interview', 'Starting...', true);
+                
+                // Start the call with the assistant
+                await vapi.start('{assistant_id}');
+                
+            }} catch (error) {{
+                console.error('Failed to start interview:', error);
+                updateStatus('❌ Failed to start interview', 'error');
+                updateSystemStatus('interview', 'Failed to start', false);
+                
+                showPanel('error', `
+                    <h3>❌ Failed to Start Interview</h3>
+                    <p>${{error.message}}</p>
+                    <p>Please try again or refresh the page.</p>
+                `);
+            }}
+        }}
+        
+        async function endInterview() {{
+            try {{
+                if (!vapi || !isCallActive) {{
+                    return;
+                }}
+                
+                updateStatus('🔄 Ending interview session...', 'info');
+                vapi.stop();
+                
+            }} catch (error) {{
+                console.error('Failed to end interview:', error);
+                showPanel('error', `
+                    <h3>❌ Failed to End Interview</h3>
+                    <p>${{error.message}}</p>
+                `);
+            }}
+        }}
+        
+        async function toggleMute() {{
+            try {{
+                if (!vapi || !isCallActive) return;
+                
+                if (isMuted) {{
+                    vapi.setMuted(false);
+                    isMuted = false;
+                    updateStatus('🎤 Microphone unmuted', 'info');
+                }} else {{
+                    vapi.setMuted(true);
+                    isMuted = true;
+                    updateStatus('🔇 Microphone muted', 'warning');
+                }}
+                
+                updateButtons();
+                
+            }} catch (error) {{
+                console.error('Failed to toggle mute:', error);
+            }}
+        }}
+        
+        function toggleTranscript() {{
+            const panel = document.getElementById('transcriptPanel');
+            const btn = document.getElementById('transcriptBtn');
+            
+            if (transcriptVisible) {{
+                panel.style.display = 'none';
+                btn.innerHTML = '📄 Show Transcript';
+                transcriptVisible = false;
+            }} else {{
+                panel.style.display = 'block';
+                btn.innerHTML = '📄 Hide Transcript';
+                transcriptVisible = true;
+            }}
+        }}
+        
+        function addTranscriptEntry(role, transcript) {{
+            const transcriptContent = document.getElementById('transcriptContent');
+            const entry = document.createElement('div');
+            entry.className = 'transcript-entry';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `
+                <div class="speaker">${{role.toUpperCase()}}:</div>
+                <div>${{transcript}}</div>
+                <div class="timestamp">${{timestamp}}</div>
+            `;
+            
+            transcriptContent.appendChild(entry);
+            transcriptContent.scrollTop = transcriptContent.scrollHeight;
+        }}
+        
+        // Page lifecycle management
+        window.addEventListener('beforeunload', (event) => {{
+            if (isCallActive) {{
+                event.preventDefault();
+                event.returnValue = 'Your UPSC interview is in progress. Are you sure you want to leave?';
+                return event.returnValue;
+            }}
+        }});
+        
+        document.addEventListener('visibilitychange', () => {{
+            if (document.hidden && isCallActive) {{
+                updateStatus('⚠️ Interview paused - window not visible', 'warning');
+            }} else if (!document.hidden && isCallActive) {{
+                updateStatus('🔴 Interview resumed', 'live');
+            }}
+        }});
+        
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', async () => {{
+            console.log('🚀 UPSC Interview System starting...');
+            
+            // Step 1: Check microphone access
+            const micOk = await checkMicrophone();
+            
+            // Step 2: Initialize Vapi (even if mic failed, user might fix it)
+            setTimeout(async () => {{
+                await initializeVapi();
+            }}, 1000);
+            
+            console.log('✅ System initialization completed');
+        }});
+    </script>
+</body>
+</html>
     """
-    return mobile_script
 
-# Add mobile detection
-st.components.v1.html(add_mobile_detection(), height=80)
-
-# Add instructions
-add_interview_instructions()
-show_popup_instructions()
-
-if not st.session_state.assistants:
-    st.info("⚠️ **Please create an assistant first in Step 4 above.**")
-else:
+def add_streamlit_direct_sdk_interface():
+    """Add the direct SDK interface to Streamlit"""
+    
+    if not st.session_state.assistants:
+        st.error("⚠️ Please create an assistant first in Step 4 above.")
+        return
+    
+    # Candidate selection
     candidate_keys = list(st.session_state.assistants.keys())
-    sel = st.selectbox("Select Candidate", options=candidate_keys, 
+    sel = st.selectbox("Select Candidate", options=candidate_keys,
                       index=candidate_keys.index(st.session_state.current_candidate) 
                       if st.session_state.current_candidate in candidate_keys else 0)
+    
     st.session_state.current_candidate = sel
     a_id = st.session_state.assistants[sel]["assistant_id"]
     candidate_name = st.session_state.assistants[sel]["name"]
-
+    
     # Status display
-    status_colors = {"idle": "🔵 Ready", "starting": "🟡 Starting", "active": "🔴 Active", "completed": "🟢 Completed", "error": "🔴 Error"}
-    st.info(f"🎯 **Interview Status:** {status_colors.get(st.session_state.interview_status, '🔵 Ready')} | **Candidate:** {candidate_name} (Roll No: {sel})")
+    status_colors = {"idle": "🔵", "starting": "🟡", "active": "🔴", "completed": "🟢"}
+    st.info(f"{status_colors.get(st.session_state.interview_status, '🔵')} **Status:** {st.session_state.interview_status.title()} | **Candidate:** {candidate_name} (Roll: {sel})")
     
-    # Main interview launch section
-    st.subheader("🚀 Launch Interview")
+    # Main launch options
+    st.subheader("🚀 Direct Voice Integration (No Popup Issues)")
     
-    # Primary launch buttons
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("🎙️ **Start Interview (Best Quality)**", type="primary", use_container_width=True, help="Opens optimized popup window with full microphone access"):
+        if st.button("🎙️ **Launch Interview (Recommended)**", type="primary", use_container_width=True, 
+                    help="Opens full-screen interview with direct microphone access"):
             st.session_state.interview_started_at = dt.datetime.now(dt.timezone.utc).isoformat()
             st.session_state.interview_status = "starting"
             
-            # Enhanced popup script with smart detection and fallback
-            popup_script = f"""
-            <script>
-            function smartInterviewLaunch() {{
-                // Test popup capability first
-                const testPopup = window.open('', '_test', 'width=1,height=1');
-                
-                if (testPopup && !testPopup.closed) {{
-                    // Popups work - close test popup and open interview
-                    testPopup.close();
-                    openEnhancedPopup();
-                }} else {{
-                    // Popup blocked - show instruction and fallback
-                    if (testPopup) testPopup.close();
-                    showPopupBlockedDialog();
-                }}
-            }}
+            # Create HTML content
+            html_content = create_direct_vapi_html(vapi_public_key, a_id, candidate_name, sel)
             
-            function openEnhancedPopup() {{
-                const width = 950;
-                const height = 750;
-                const left = Math.max(0, (screen.width - width) / 2);
-                const top = Math.max(0, (screen.height - height) / 2);
+            # Save to temporary file and open in browser
+            try:
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+                    f.write(html_content)
+                    temp_file = f.name
                 
-                const popup = window.open(
-                    'about:blank',
-                    'upsc_interview_' + Date.now(),
-                    `width=${{width}},height=${{height}},left=${{left}},top=${{top}},toolbar=no,menubar=no,scrollbars=yes,resizable=yes,status=no`
-                );
+                # Open in default browser
+                webbrowser.open('file://' + temp_file)
+                st.success("🚀 **Interview launched successfully!** Check your browser for the interview window.")
+                st.info("💡 **Tip:** The interview opens in a new browser window with full microphone access - no popup blocking issues!")
                 
-                if (popup) {{
-                    popup.document.write(`
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head>
-                        <meta charset="utf-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1">
-                        <title>🎤 UPSC Mock Interview - {candidate_name}</title>
-                        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
-                        <style>
-                            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-                            body {{ 
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                min-height: 100vh; color: white; padding: 20px;
-                                display: flex; flex-direction: column;
-                            }}
-                            .status-bar {{ 
-                                position: fixed; top: 0; left: 0; right: 0; 
-                                background: linear-gradient(90deg, #000, #1a1a1a); color: #4ade80; 
-                                padding: 10px 20px; text-align: center; z-index: 1000;
-                                font-weight: 600; font-size: 14px; letter-spacing: 0.5px;
-                                border-bottom: 2px solid #14b8a6; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-                            }}
-                            .container {{ max-width: 900px; margin: 50px auto 0; flex: 1; }}
-                            .header {{ text-align: center; margin-bottom: 25px; }}
-                            .header h1 {{ 
-                                font-size: 2.4em; margin-bottom: 5px; 
-                                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                                background: linear-gradient(45deg, #fff, #e0e7ff);
-                                -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                                background-clip: text; font-weight: 700;
-                            }}
-                            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }}
-                            .info-card {{ 
-                                background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; 
-                                backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.2);
-                                box-shadow: 0 8px 32px rgba(0,0,0,0.1); transition: transform 0.2s ease;
-                            }}
-                            .info-card:hover {{ transform: translateY(-2px); }}
-                            .info-card h3 {{ margin-bottom: 12px; color: #fbbf24; font-size: 1.1em; }}
-                            .info-card p {{ margin: 6px 0; font-size: 0.95em; }}
-                            .info-card ul {{ margin-left: 18px; margin-top: 10px; }}
-                            .info-card li {{ margin: 5px 0; font-size: 0.9em; }}
-                            .widget-container {{ 
-                                margin-top: 25px; background: rgba(255,255,255,0.05); 
-                                border-radius: 20px; padding: 25px; backdrop-filter: blur(10px);
-                                border: 1px solid rgba(255,255,255,0.1);
-                            }}
-                            .loading {{ 
-                                text-align: center; padding: 40px;
-                                background: rgba(255,255,255,0.1); border-radius: 15px;
-                                backdrop-filter: blur(10px);
-                            }}
-                            .loading h3 {{ color: #60a5fa; margin-bottom: 15px; font-size: 1.3em; }}
-                            .error-box, .success-box {{
-                                border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;
-                                font-weight: 500; backdrop-filter: blur(10px);
-                            }}
-                            .error-box {{ background: rgba(239, 68, 68, 0.2); border: 2px solid #ef4444; }}
-                            .success-box {{ background: rgba(34, 197, 94, 0.2); border: 2px solid #22c55e; }}
-                            @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.7; }} }}
-                            .pulse {{ animation: pulse 2s infinite; }}
-                            @media (max-width: 768px) {{
-                                .info-grid {{ grid-template-columns: 1fr; }}
-                                .container {{ margin: 50px 15px 0; }}
-                                .header h1 {{ font-size: 2em; }}
-                            }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="status-bar" id="statusBar">
-                            🔄 Initializing Advanced Interview System...
-                        </div>
-                        
-                        <div class="container">
-                            <div class="header">
-                                <h1>🎤 UPSC Civil Services Interview</h1>
-                                <p style="opacity: 0.9; font-size: 1.1em;">Personality Test Simulation</p>
-                            </div>
-                            
-                            <div class="info-grid">
-                                <div class="info-card">
-                                    <h3>📋 Interview Details</h3>
-                                    <p><strong>Candidate:</strong> {candidate_name}</p>
-                                    <p><strong>Roll Number:</strong> {sel}</p>
-                                    <p><strong>Duration:</strong> 30-35 minutes + feedback</p>
-                                    <p><strong>Status:</strong> <span id="sessionStatus">Preparing...</span></p>
-                                </div>
-                                
-                                <div class="info-card">
-                                    <h3>🎯 Quick Reminders</h3>
-                                    <ul style="font-size: 0.9em;">
-                                        <li>Allow microphone access when prompted</li>
-                                        <li>Speak clearly and confidently</li>
-                                        <li>Listen carefully to each question</li>
-                                        <li>Take a moment to think before answering</li>
-                                    </ul>
-                                </div>
-                            </div>
-                            
-                            <div class="widget-container" id="widgetContainer">
-                                <div class="loading pulse" id="loadingMessage">
-                                    <h3>🔄 Loading Advanced Voice Interface...</h3>
-                                    <p>Preparing microphone access and AI interview system</p>
-                                    <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">This may take a few moments...</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <script>
-                            // Enhanced status management
-                            function updateStatus(message, type = 'info') {{
-                                const statusBar = document.getElementById('statusBar');
-                                const statusEmoji = {{
-                                    'info': '🔄', 'success': '✅', 'warning': '⚠️', 'error': '❌', 'live': '🔴'
-                                }};
-                                statusBar.innerHTML = `${{statusEmoji[type] || '🔄'}} ${{message}}`;
-                                statusBar.style.background = {{
-                                    'success': 'linear-gradient(90deg, #059669, #065f46)',
-                                    'warning': 'linear-gradient(90deg, #d97706, #92400e)', 
-                                    'error': 'linear-gradient(90deg, #dc2626, #991b1b)',
-                                    'live': 'linear-gradient(90deg, #dc2626, #991b1b)'
-                                }}[type] || 'linear-gradient(90deg, #000, #1a1a1a)';
-                            }}
-                            
-                            function updateSessionStatus(status) {{
-                                document.getElementById('sessionStatus').textContent = status;
-                            }}
-                            
-                            function showError(message, canRetry = true) {{
-                                const container = document.getElementById('widgetContainer');
-                                container.innerHTML = `
-                                    <div class="error-box">
-                                        <h3>❌ Technical Issue Detected</h3>
-                                        <p>${{message}}</p>
-                                        ${{canRetry ? '<button onclick="location.reload()" style="margin-top: 15px; padding: 12px 24px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">🔄 Retry Interview Setup</button>' : ''}}
-                                    </div>
-                                `;
-                                updateStatus('Technical error - please retry', 'error');
-                            }}
-                            
-                            function showSuccess(message) {{
-                                const container = document.getElementById('widgetContainer');
-                                const successDiv = document.createElement('div');
-                                successDiv.className = 'success-box';
-                                successDiv.innerHTML = `<p>${{message}}</p>`;
-                                container.insertBefore(successDiv, container.firstChild);
-                                setTimeout(() => {{ if (successDiv.parentNode) successDiv.remove(); }}, 5000);
-                            }}
-                            
-                            // Enhanced microphone permission check
-                            async function checkMicrophonePermission() {{
-                                try {{
-                                    updateStatus('Verifying microphone access...', 'info');
-                                    updateSessionStatus('Checking microphone');
-                                    
-                                    const stream = await navigator.mediaDevices.getUserMedia({{ audio: true }});
-                                    const audioTracks = stream.getAudioTracks();
-                                    
-                                    if (audioTracks.length > 0) {{
-                                        console.log('Microphone detected:', audioTracks[0].label);
-                                        updateStatus('Microphone access confirmed', 'success');
-                                        updateSessionStatus('Microphone ready ✓');
-                                    }}
-                                    
-                                    // Stop all tracks
-                                    stream.getTracks().forEach(track => track.stop());
-                                    return true;
-                                }} catch (error) {{
-                                    console.warn('Microphone permission issue:', error.name, error.message);
-                                    updateStatus('Microphone access required', 'warning');
-                                    updateSessionStatus('Allow microphone access');
-                                    
-                                    if (error.name === 'NotAllowedError') {{
-                                        showError('Microphone access was denied. Please allow microphone access and refresh the page.');
-                                    }} else if (error.name === 'NotFoundError') {{
-                                        showError('No microphone found. Please connect a microphone and refresh.');
-                                    }}
-                                    return false;
-                                }}
-                            }}
-                            
-                            // Enhanced widget initialization
-                            async function initializeWidget() {{
-                                const apiKey = '{vapi_public_key}';
-                                const assistantId = '{a_id}';
-                                
-                                if (!apiKey || !assistantId) {{
-                                    showError('Interview configuration missing. Please contact support.', false);
-                                    return;
-                                }}
-                                
-                                updateStatus('Setting up AI interview system...', 'info');
-                                updateSessionStatus('Loading AI system');
-                                
-                                // Wait for DOM to be fully ready
-                                await new Promise(resolve => setTimeout(resolve, 1500));
-                                
-                                try {{
-                                    // Create enhanced widget
-                                    const widget = document.createElement('vapi-widget');
-                                    const widgetConfig = {{
-                                        'public-key': apiKey,
-                                        'assistant-id': assistantId,
-                                        'mode': 'voice',
-                                        'theme': 'dark',
-                                        'base-bg-color': '#000000',
-                                        'accent-color': '#14B8A6',
-                                        'cta-button-color': '#667eea',
-                                        'cta-button-text-color': '#ffffff',
-                                        'border-radius': 'large',
-                                        'size': 'full',
-                                        'position': 'center',
-                                        'title': 'UPSC MOCK INTERVIEW',
-                                        'start-button-text': '🎙️ Begin Interview',
-                                        'end-button-text': '📞 End Interview',
-                                        'voice-show-transcript': 'true',
-                                        'consent-required': 'true',
-                                        'consent-title': 'Interview Consent',
-                                        'consent-content': 'By proceeding, I consent to the recording and analysis of this mock interview session for assessment purposes in accordance with UPSC Civil Services guidelines.',
-                                        'consent-storage-key': 'upsc_interview_consent'
-                                    }};
-                                    
-                                    Object.entries(widgetConfig).forEach(([key, value]) => {{
-                                        widget.setAttribute(key, value);
-                                    }});
-                                    
-                                    // Replace loading with widget
-                                    const container = document.getElementById('widgetContainer');
-                                    container.innerHTML = '';
-                                    container.appendChild(widget);
-                                    
-                                    updateStatus('Interview system ready - Click "Begin Interview"', 'success');
-                                    updateSessionStatus('Ready to start');
-                                    
-                                    // Enhanced widget event listeners
-                                    widget.addEventListener('call-start', () => {{
-                                        updateStatus('🔴 INTERVIEW IN PROGRESS', 'live');
-                                        updateSessionStatus('🔴 Live Interview');
-                                        document.title = '🔴 LIVE: UPSC Interview - {candidate_name}';
-                                        showSuccess('✅ Interview started successfully! Speak clearly and confidently.');
-                                        
-                                        // Hide other elements to focus on interview
-                                        document.querySelector('.info-grid').style.opacity = '0.3';
-                                    }});
-                                    
-                                    widget.addEventListener('call-end', () => {{
-                                        updateStatus('Interview session completed', 'success');
-                                        updateSessionStatus('✅ Completed successfully');
-                                        document.title = '✅ Completed: UPSC Interview - {candidate_name}';
-                                        showSuccess('🎉 Interview completed! Your performance is being analyzed. You may close this window.');
-                                        
-                                        // Restore visibility
-                                        document.querySelector('.info-grid').style.opacity = '1';
-                                    }});
-                                    
-                                    widget.addEventListener('error', (event) => {{
-                                        console.error('Widget error details:', event);
-                                        updateStatus('Interview system error', 'error');
-                                        updateSessionStatus('❌ Technical error');
-                                        showError('A technical error occurred. Please refresh and try again, or contact support if the issue persists.');
-                                    }});
-                                    
-                                    // Additional widget events
-                                    widget.addEventListener('call-connecting', () => {{
-                                        updateStatus('Connecting to interview board...', 'info');
-                                        updateSessionStatus('Connecting...');
-                                    }});
-                                    
-                                }} catch (error) {{
-                                    console.error('Widget initialization failed:', error);
-                                    showError('Failed to initialize the interview system. Please refresh the page and try again.');
-                                }}
-                            }}
-                            
-                            // Enhanced SDK loading
-                            function loadVapiSDK() {{
-                                return new Promise((resolve, reject) => {{
-                                    updateStatus('Loading voice SDK...', 'info');
-                                    const script = document.createElement('script');
-                                    script.src = 'https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js';
-                                    script.async = true;
-                                    script.onload = () => {{
-                                        console.log('Vapi SDK loaded successfully');
-                                        resolve();
-                                    }};
-                                    script.onerror = (error) => {{
-                                        console.error('SDK loading failed:', error);
-                                        reject(new Error('Failed to load voice interface SDK'));
-                                    }};
-                                    document.head.appendChild(script);
-                                }});
-                            }}
-                            
-                            // Main initialization sequence
-                            document.addEventListener('DOMContentLoaded', async () => {{
-                                try {{
-                                    console.log('Starting interview initialization...');
-                                    
-                                    // Step 1: Check microphone
-                                    const micOk = await checkMicrophonePermission();
-                                    if (!micOk) {{
-                                        console.warn('Microphone check failed, but continuing...');
-                                    }}
-                                    
-                                    // Step 2: Load SDK
-                                    updateStatus('Loading advanced voice system...', 'info');
-                                    await loadVapiSDK();
-                                    
-                                    // Step 3: Initialize widget
-                                    await initializeWidget();
-                                    
-                                    console.log('Interview initialization completed successfully');
-                                    
-                                }} catch (error) {{
-                                    console.error('Initialization sequence failed:', error);
-                                    showError('Failed to initialize the interview system. Please check your internet connection and try again.');
-                                }}
-                            }});
-                            
-                            // Enhanced page lifecycle management
-                            window.addEventListener('beforeunload', (event) => {{
-                                if (document.title.includes('🔴 LIVE:')) {{
-                                    event.preventDefault();
-                                    event.returnValue = 'Your UPSC interview is currently in progress. Are you sure you want to leave? This will end your interview session.';
-                                    return event.returnValue;
-                                }}
-                            }});
-                            
-                            document.addEventListener('visibilitychange', () => {{
-                                if (document.hidden && document.title.includes('🔴 LIVE:')) {{
-                                    updateStatus('⚠️ Interview paused - window not visible', 'warning');
-                                }} else if (!document.hidden && document.title.includes('🔴 LIVE:')) {{
-                                    updateStatus('🔴 Interview resumed', 'live');
-                                }}
-                            }});
-                            
-                            // Performance monitoring
-                            window.addEventListener('load', () => {{
-                                console.log('Interview window fully loaded in', performance.now().toFixed(0), 'ms');
-                            }});
-                        </script>
-                    </body>
-                    </html>
-                    `);
-                    popup.document.close();
-                    popup.focus();
-                    
-                    // Enhanced popup monitoring
-                    const monitorInterval = setInterval(() => {{
-                        if (popup.closed) {{
-                            clearInterval(monitorInterval);
-                            console.log('Interview window was closed by user');
-                        }}
-                    }}, 1000);
-                    
-                }} else {{
-                    showPopupBlockedDialog();
-                }}
-            }}
-            
-            function showPopupBlockedDialog() {{
-                const overlay = document.createElement('div');
-                overlay.style.cssText = `
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(0,0,0,0.8); z-index: 10000; display: flex;
-                    align-items: center; justify-content: center;
-                `;
+                # Clean up the temp file after a delay (optional)
+                import threading
+                def cleanup():
+                    import time
+                    time.sleep(300)  # Wait 5 minutes
+                    try:
+                        os.unlink(temp_file)
+                    except:
+                        pass
+                threading.Thread(target=cleanup, daemon=True).start()
                 
-                const dialog = document.createElement('div');
-                dialog.style.cssText = `
-                    background: linear-gradient(135deg, #667eea, #764ba2); color: white;
-                    padding: 30px; border-radius: 15px; max-width: 500px; width: 90%;
-                    text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-                    font-family: system-ui; position: relative;
-                `;
-                
-                dialog.innerHTML = `
-                    <h3 style="margin-bottom: 20px; font-size: 1.5em;">🚫 Popup Blocked</h3>
-                    <p style="margin-bottom: 20px; line-height: 1.5;">
-                        For the best interview experience with full microphone access, please:
-                    </p>
-                    <ol style="text-align: left; margin-bottom: 25px; padding-left: 20px;">
-                        <li style="margin: 8px 0;">Click the popup icon (🚫) in your browser's address bar</li>
-                        <li style="margin: 8px 0;">Select "Always allow popups from this site"</li>
-                        <li style="margin: 8px 0;">Click "Start Interview" again</li>
-                    </ol>
-                    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-                        <button onclick="window.open('{create_interview_url(vapi_public_key, a_id, candidate_name, sel)}', '_blank'); document.body.removeChild(this.closest('[style*=\"position: fixed\"]'));" 
-                                style="background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">
-                            🌐 Continue in New Tab
-                        </button>
-                        <button onclick="document.body.removeChild(this.closest('[style*=\"position: fixed\"]'));" 
-                                style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">
-                            ✕ Close
-                        </button>
-                    </div>
-                `;
-                
-                overlay.appendChild(dialog);
-                document.body.appendChild(overlay);
-                
-                // Auto-close after 15 seconds and open in new tab
-                setTimeout(() => {{
-                    if (document.body.contains(overlay)) {{
-                        document.body.removeChild(overlay);
-                        window.open('{create_interview_url(vapi_public_key, a_id, candidate_name, sel)}', '_blank');
-                    }}
-                }}, 15000);
-            }}
-            
-            // Execute the smart launch
-            smartInterviewLaunch();
-            </script>
-            """
-            st.components.v1.html(popup_script, height=0)
-            st.success("🚀 **Interview launch initiated!** If popup was blocked, it will automatically open in a new tab.")
-            st.session_state.interview_status = "active"
+            except Exception as e:
+                st.error(f"❌ Failed to launch interview: {str(e)}")
+                st.session_state.interview_status = "error"
     
     with col2:
-        external_url = create_interview_url(vapi_public_key, a_id, candidate_name, sel)
-        if st.button("🌐 **Backup Method (New Tab)**", use_container_width=True, help="Opens interview in a new browser tab - use if popup is blocked"):
-            st.session_state.interview_started_at = dt.datetime.now(dt.timezone.utc).isoformat()
-            st.session_state.interview_status = "starting"
+        # Alternative: Save and download HTML file
+        if st.button("💾 **Download Interview File**", use_container_width=True,
+                    help="Download HTML file to open manually"):
+            html_content = create_direct_vapi_html(vapi_public_key, a_id, candidate_name, sel)
             
-            new_tab_script = f"""
-            <script>
-            const newTab = window.open('{external_url}', '_blank');
-            if (!newTab) {{
-                alert('❌ New tab blocked! Please allow popups or manually copy the interview link.');
-            }}
-            </script>
-            """
-            st.components.v1.html(new_tab_script, height=0)
-            st.success("🎯 **New tab opened!** Switch to the interview tab to begin.")
+            st.download_button(
+                label="📁 Download Interview.html",
+                data=html_content,
+                file_name=f"upsc_interview_{sel}_{dt.datetime.now().strftime('%Y%m%d_%H%M')}.html",
+                mime="text/html",
+                use_container_width=True
+            )
+            st.info("💡 **Instructions:** Download the file and open it in your browser for the interview.")
 
-    # Additional options
-    st.subheader("📱 Additional Options")
-    
-    col3, col4, col5 = st.columns(3)
-    
-    with col3:
-        mobile_url = create_interview_url(vapi_public_key, a_id, candidate_name, sel, is_mobile=True)
-        st.link_button("📱 Mobile Version", mobile_url, use_container_width=True, help="Optimized for mobile devices")
-    
-    with col4:
-        if st.button("📋 Copy Interview Link", use_container_width=True, help="Copy link to clipboard"):
-            copy_script = f"""
-            <script>
-            if (navigator.clipboard) {{
-                navigator.clipboard.writeText('{external_url}').then(() => {{
-                    alert('✅ Interview link copied to clipboard!');
-                }}).catch(() => {{
-                    prompt('📋 Copy this link manually:', '{external_url}');
+    # Embedded version (may have limitations)
+    with st.expander("📱 Alternative: Embedded Version (Limited)", expanded=False):
+        st.warning("⚠️ **Note:** This embedded version may have microphone limitations. Use the main launch button above for best results.")
+        
+        if st.button("🔗 Try Embedded Version"):
+            embedded_html = f"""
+            <div style="height: 600px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 15px; padding: 20px; color: white;">
+                <script src="https://unpkg.com/@vapi-ai/web@latest/dist/index.js"></script>
+                <div style="text-align: center;">
+                    <h3>🎤 UPSC Interview - Embedded Mode</h3>
+                    <p>Candidate: {candidate_name} | Roll: {sel}</p>
+                    <div style="margin: 20px 0;">
+                        <button id="embedStart" style="background: #14b8a6; color: white; border: none; padding: 15px 25px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin: 5px;">
+                            🎙️ Start Interview
+                        </button>
+                        <button id="embedEnd" style="background: #ef4444; color: white; border: none; padding: 15px 25px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin: 5px;" disabled>
+                            📞 End Interview
+                        </button>
+                    </div>
+                    <div id="embedStatus" style="padding: 15px; background: rgba(0,0,0,0.3); border-radius: 10px; margin: 10px 0;">
+                        Initializing...
+                    </div>
+                </div>
+                
+                <script>
+                let embedVapi = null;
+                let embedActive = false;
+                
+                document.addEventListener('DOMContentLoaded', function() {{
+                    if (typeof window.Vapi !== 'undefined') {{
+                        embedVapi = new window.Vapi('{vapi_public_key}');
+                        
+                        embedVapi.on('call-start', () => {{
+                            embedActive = true;
+                            document.getElementById('embedStatus').innerHTML = '🔴 Interview in progress';
+                            document.getElementById('embedStart').disabled = true;
+                            document.getElementById('embedEnd').disabled = false;
+                        }});
+                        
+                        embedVapi.on('call-end', () => {{
+                            embedActive = false;
+                            document.getElementById('embedStatus').innerHTML = '✅ Interview completed';
+                            document.getElementById('embedStart').disabled = false;
+                            document.getElementById('embedEnd').disabled = true;
+                        }});
+                        
+                        embedVapi.on('error', (error) => {{
+                            document.getElementById('embedStatus').innerHTML = '❌ Error: ' + error.message;
+                            embedActive = false;
+                            document.getElementById('embedStart').disabled = false;
+                            document.getElementById('embedEnd').disabled = true;
+                        }});
+                        
+                        document.getElementById('embedStart').onclick = () => {{
+                            embedVapi.start('{a_id}');
+                        }};
+                        
+                        document.getElementById('embedEnd').onclick = () => {{
+                            embedVapi.stop();
+                        }};
+                        
+                        document.getElementById('embedStatus').innerHTML = '✅ Ready to start (⚠️ May have microphone limitations)';
+                    }} else {{
+                        document.getElementById('embedStatus').innerHTML = '❌ SDK not loaded - try the main launch button above';
+                    }}
                 }});
-            }} else {{
-                prompt('📋 Copy this link manually:', '{external_url}');
-            }}
-            </script>
+                </script>
+            </div>
             """
-            st.components.v1.html(copy_script, height=0)
-    
-    with col5:
-        if st.button("🔄 Reset Session", help="Clear current session and start fresh"):
-            st.session_state.interview_started_at = None
-            st.session_state.interview_status = "idle"
-            st.success("✅ Session reset successfully.")
-            st.rerun()
+            st.components.v1.html(embedded_html, height=600)
 
-    # Current session info
+    # Session management
     if st.session_state.interview_started_at:
         start_time = dt.datetime.fromisoformat(st.session_state.interview_started_at.replace('Z', '+00:00'))
         elapsed = dt.datetime.now(dt.timezone.utc) - start_time
         
         st.info(f"""
-        ⏱️ **Active Session Information:**
-        - **Started:** {start_time.strftime('%H:%M:%S UTC')} 
+        ⏱️ **Active Session:**
+        - **Started:** {start_time.strftime('%H:%M:%S UTC')}
         - **Elapsed:** {str(elapsed).split('.')[0]}
         - **Status:** {st.session_state.interview_status.title()}
-        - **Candidate:** {candidate_name}
         """)
+        
+        if st.button("🔄 Reset Session"):
+            st.session_state.interview_started_at = None
+            st.session_state.interview_status = "idle"
+            st.success("✅ Session reset successfully.")
+            st.rerun()
 
-    # Enhanced troubleshooting section
-    with st.expander("🔧 Troubleshooting & Help", expanded=False):
+    # Instructions and help
+    with st.expander("📋 How This Works & Troubleshooting", expanded=False):
         st.markdown("""
-        ### 🚨 Common Issues & Solutions:
+        ### 🎯 **How Direct SDK Integration Works:**
         
-        **🎤 Microphone Problems:**
-        - **Permission Denied:** Click browser's 🔒 lock icon → Allow microphone
-        - **No Audio:** Check system microphone settings and test with other apps
-        - **Poor Quality:** Use external microphone or headset
-        - **Not Detected:** Try different browser or restart browser completely
+        **✅ Advantages:**
+        - **No popup blocking** - Opens directly in browser
+        - **Full microphone access** - No iframe restrictions  
+        - **Professional interface** - Clean, modern design
+        - **Real-time feedback** - Live status updates and transcript
+        - **Reliable performance** - Direct API integration
         
-        **🌐 Browser Issues:**
-        - **Popup Blocked:** Look for 🚫 icon in address bar → "Always allow popups"
-        - **Widget Won't Load:** Disable ad blockers temporarily
-        - **Freezing/Lag:** Close other tabs and applications
-        - **Mobile Issues:** Use desktop/laptop for best experience
+        ### 🚀 **Usage Instructions:**
         
-        **📞 Interview Problems:**
-        - **Call Drops:** Check internet stability, use wired connection
-        - **Audio Delay:** Refresh and try again
-        - **Can't Hear Interviewer:** Check speakers/headphones
-        - **Interviewer Can't Hear You:** Check microphone permissions and settings
+        1. **Click "Launch Interview"** - Opens in new browser window/tab
+        2. **Allow microphone access** when prompted by browser
+        3. **Click "Start Interview"** in the interview window
+        4. **Conduct your interview** - Speak clearly and confidently
+        5. **Click "End Interview"** when finished
+        6. **Return to Streamlit** for feedback analysis
         
-        **🔄 If All Else Fails:**
-        1. Try different browser (Chrome recommended)
-        2. Clear browser cache and cookies
-        3. Restart browser completely
-        4. Try from different device
-        5. Contact technical support with error details
+        ### 🔧 **Troubleshooting:**
         
-        ### ✅ **Recommended Setup:**
-        - **Browser:** Chrome 85+ or Firefox 80+
-        - **Connection:** Stable broadband (10+ Mbps)
-        - **Device:** Desktop/laptop with external microphone
-        - **Environment:** Quiet room with good lighting
+        **If interview window doesn't open:**
+        - Check if popup/tab blockers are enabled
+        - Try the "Download Interview File" option
+        - Manually open the downloaded HTML file in browser
+        
+        **If microphone doesn't work:**
+        - Allow microphone access when browser prompts
+        - Check browser microphone settings
+        - Try different browser (Chrome recommended)
+        - Ensure no other apps are using microphone
+        
+        **If connection fails:**
+        - Check internet connection
+        - Refresh the interview window
+        - Try again in a few minutes
+        - Contact support if issue persists
+        
+        ### 🎤 **Best Practices:**
+        - Use desktop/laptop for best experience
+        - Use external microphone or headset
+        - Ensure stable internet connection
+        - Close unnecessary browser tabs
+        - Test microphone before starting
         """)
 
-st.markdown("---")
-st.header("Step 6 · Fetch & Display Feedback")
-auto=st.checkbox("Auto-refresh every 5s", value=False, help="Automatically check for interview completion")
-fetch_now=st.button("Fetch Latest Feedback For Selected Candidate", type="primary")
-
-if auto:
-    time.sleep(5)
-    st.rerun()
-
-def list_calls(api_key:str, params:Dict[str,Any]=None)->List[Dict[str,Any]]:
-    url=f"{VAPI_BASE_URL}/call"
-    headers={"Authorization":f"Bearer {api_key}"}
-    r=requests.get(url,headers=headers,params=params or {})
-    if r.status_code>=300: raise RuntimeError(f"List Calls failed: {r.status_code} {r.text}")
-    data=r.json()
-    if isinstance(data,dict) and "items" in data: return data["items"]
-    if isinstance(data,list): return data
-    return []
-
-def get_latest_call_for_assistant(api_key:str, assistant_id:str, started_after_iso:str)->Dict[str,Any]:
-    items=[]
-    try:
-        items=list_calls(api_key, params={"assistantId":assistant_id,"limit":50})
-    except Exception:
-        items=list_calls(api_key, params={"limit":50})
-    def after_start(c):
-        try:
-            return c.get("startedAt") and c["startedAt"]>=started_after_iso
-        except Exception:
-            return True
-    filtered=[c for c in items if c.get("assistantId")==assistant_id and after_start(c)]
-    filtered=sorted(filtered, key=lambda x: x.get("endedAt") or x.get("updatedAt") or x.get("createdAt") or "", reverse=True)
-    return filtered[0] if filtered else {}
-
-def fetch_call(api_key:str, call_id:str)->Dict[str,Any]:
-    url=f"{VAPI_BASE_URL}/call/{call_id}"
-    headers={"Authorization":f"Bearer {api_key}"}
-    r=requests.get(url,headers=headers)
-    if r.status_code>=300: raise RuntimeError(f"Get Call failed: {r.status_code} {r.text}")
-    return r.json()
-
-def flatten_feedback_for_table(call_obj:Dict[str,Any])->pd.DataFrame:
-    analysis=call_obj.get("analysis") or {}
-    structured=analysis.get("structuredData") or {}
-    rows=[]
-    order=["clarityOfExpression","reasoningAbility","analyticalDepth","currentAffairsAwareness","ethicalJudgment","personalityTraits","socialAwareness","hobbiesDepth","overallImpression","strengths","areasForImprovement","overallFeedback"]
-    display_names={"clarityOfExpression":"Clarity of Expression","reasoningAbility":"Reasoning Ability","analyticalDepth":"Analytical Depth","currentAffairsAwareness":"Current Affairs Awareness","ethicalJudgment":"Ethical Judgment","personalityTraits":"Personality Traits","socialAwareness":"Social Awareness","hobbiesDepth":"Hobbies & Interests","overallImpression":"Overall Impression","strengths":"Key Strengths","areasForImprovement":"Areas for Improvement","overallFeedback":"Overall Feedback"}
-    for k in order:
-        if k in structured and structured[k]: 
-            rows.append({"Assessment Criteria":display_names.get(k,k),"Detailed Feedback":structured[k]})
-    if not rows: rows.append({"Assessment Criteria":"Status","Detailed Feedback":"Analysis in progress. Please wait for interview completion."})
-    return pd.DataFrame(rows)
-
-if fetch_now or auto:
-    if not vapi_api_key:
-        st.error("Vapi API key required.")
-    elif not st.session_state.current_candidate:
-        st.error("Select a candidate.")
-    else:
-        a_id=st.session_state.assistants[st.session_state.current_candidate]["assistant_id"]
-        started_after=st.session_state.interview_started_at or "1970-01-01T00:00:00Z"
-        try:
-            latest=get_latest_call_for_assistant(vapi_api_key,a_id,started_after)
-            if not latest:
-                st.info("⏳ **Waiting for interview completion...** Feedback will appear automatically once the interview is finished and analyzed.")
-                if st.session_state.interview_status == "active":
-                    st.info("🔴 **Interview in progress.** Keep this tab open to monitor completion status.")
-            else:
-                call=fetch_call(vapi_api_key, latest["id"])
-                analysis=call.get("analysis") or {}
-                summary=analysis.get("summary") or ""
-                success=analysis.get("successEvaluation") or {}
-                df=flatten_feedback_for_table(call)
-                
-                st.subheader("📊 Comprehensive Interview Performance Report")
-                st.success("✅ **Interview completed and comprehensive analysis generated!**")
-                
-                # Interview summary
-                if summary:
-                    st.markdown("### 📝 Executive Summary")
-                    st.info(summary)
-                    st.markdown("---")
-                
-                # Detailed feedback table
-                st.markdown("### 📋 Detailed Performance Assessment")
-                st.dataframe(df, use_container_width=True, hide_index=True)
-                
-                # Overall rating with enhanced presentation
-                rating=None; justification=None
-                if isinstance(success, dict):
-                    rating=success.get("overallRating")
-                    justification=success.get("justification") or success.get("reason")
-                elif success:
-                    rating=str(success)
-                
-                if rating:
-                    st.markdown("### 🎯 Final Assessment")
-                    if rating in ["Highly Suitable","Suitable"]:
-                        st.success(f"🌟 **Overall Assessment: {rating}**")
-                    elif rating in ["Borderline"]:
-                        st.warning(f"⚖️ **Overall Assessment: {rating}**")
-                    elif rating in ["Unsuitable"]:
-                        st.error(f"📉 **Overall Assessment: {rating}**")
-                    else:
-                        st.info(f"📊 **Overall Assessment: {rating}**")
-                    
-                    if justification:
-                        st.markdown(f"**💡 Assessment Rationale:** {justification}")
-                
-                # Additional resources and downloads
-                st.markdown("---")
-                st.markdown("### 📁 Interview Resources")
-                
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    artifact=call.get("artifact") or {}
-                    rec=(artifact.get("recording") or {}).get("mono") or {}
-                    if rec.get("combinedUrl"): 
-                        st.link_button("🎵 Download Audio Recording", rec["combinedUrl"], type="secondary", use_container_width=True)
-                
-                with col2:
-                    if artifact.get("transcript"):
-                        # Create downloadable transcript
-                        transcript_content = f"""UPSC Mock Interview Transcript
-Candidate: {candidate_name}
-Roll Number: {sel}
-Date: {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-{'-'*50}
-
-{artifact['transcript']}
-
-{'-'*50}
-Generated by Drishti UPSC Mock Interview System
-"""
-                        st.download_button(
-                            label="📄 Download Transcript",
-                            data=transcript_content,
-                            file_name=f"interview_transcript_{sel}_{dt.datetime.now().strftime('%Y%m%d')}.txt",
-                            mime="text/plain",
-                            use_container_width=True
-                        )
-                
-                with col3:
-                    # Create downloadable feedback report
-                    feedback_content = f"""UPSC Mock Interview - Performance Report
-Candidate: {candidate_name}
-Roll Number: {sel}
-Interview Date: {dt.datetime.now().strftime('%Y-%m-%d')}
-Assessment System: Drishti AI
-
-{'-'*50}
-EXECUTIVE SUMMARY
-{'-'*50}
-{summary}
-
-{'-'*50}
-OVERALL ASSESSMENT: {rating or 'Not Available'}
-{'-'*50}
-{justification or 'Detailed assessment completed.'}
-
-{'-'*50}
-DETAILED PERFORMANCE ANALYSIS
-{'-'*50}
-"""
-                    for _, row in df.iterrows():
-                        feedback_content += f"\n{row['Assessment Criteria']}:\n{row['Detailed Feedback']}\n"
-                    
-                    feedback_content += f"""
-{'-'*50}
-Report generated on: {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-System: Drishti UPSC Mock Interview Platform
-© Drishti AI Team
-"""
-                    
-                    st.download_button(
-                        label="📊 Download Report",
-                        data=feedback_content,
-                        file_name=f"interview_report_{sel}_{dt.datetime.now().strftime('%Y%m%d')}.txt",
-                        mime="text/plain",
-                        use_container_width=True
-                    )
-                
-                # Transcript viewer
-                if artifact.get("transcript"):
-                    with st.expander("📄 View Complete Interview Transcript", expanded=False):
-                        st.text_area("Full Interview Transcript", artifact["transcript"], height=400, help="Complete conversation record")
-                
-                # Performance insights
-                structured_data = analysis.get("structuredData") or {}
-                if structured_data:
-                    with st.expander("📈 Detailed Performance Insights", expanded=False):
-                        insight_cols = st.columns(2)
-                        with insight_cols[0]:
-                            if structured_data.get("strengths"):
-                                st.markdown("**🌟 Key Strengths:**")
-                                st.success(structured_data["strengths"])
-                            if structured_data.get("personalityTraits"):
-                                st.markdown("**👤 Personality Assessment:**")
-                                st.info(structured_data["personalityTraits"])
-                        
-                        with insight_cols[1]:
-                            if structured_data.get("areasForImprovement"):
-                                st.markdown("**🎯 Areas for Improvement:**")
-                                st.warning(structured_data["areasForImprovement"])
-                            if structured_data.get("overallImpression"):
-                                st.markdown("**💭 Overall Impression:**")
-                                st.info(structured_data["overallImpression"])
-                
-                # Update status to completed
-                if st.session_state.interview_status in ["starting", "active"]:
-                    st.session_state.interview_status = "completed"
-                    
-        except Exception as e:
-            st.error(f"❌ **Error fetching feedback:** {str(e)}")
-            st.session_state.interview_status = "error"
-            
-            # Provide troubleshooting help
-            with st.expander("🔧 Troubleshooting Feedback Issues", expanded=True):
-                st.markdown("""
-                **Common solutions:**
-                1. **Wait longer:** Analysis takes 2-3 minutes after interview completion
-                2. **Check interview status:** Ensure interview was properly completed
-                3. **Refresh manually:** Click "Fetch Latest Feedback" button again
-                4. **Verify API keys:** Ensure Vapi API key is correctly configured
-                5. **Contact support:** If issue persists, note the error message above
-                """)
+# Add the interface to your app
+add_streamlit_direct_sdk_interface()
 
 st.markdown("---")
 st.markdown("""
