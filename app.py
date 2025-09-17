@@ -4,16 +4,21 @@ import streamlit as st, requests, pandas as pd
 import threading, functools
 
 APP_TITLE="Drishti UPSC Mock Interview"; APP_SUBTITLE="Developed by Drishti AI Team"
-# Load .env if present to avoid exposing keys in UI
+# Load .env if present locally; on Streamlit Cloud, prefer st.secrets
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except Exception:
     pass
 VAPI_BASE_URL="https://api.vapi.ai"
-DEFAULT_VAPI_API_KEY=os.getenv("VAPI_API_KEY","")
-DEFAULT_VAPI_PUBLIC_KEY=os.getenv("VAPI_PUBLIC_KEY","")
-DEFAULT_GEMINI_API_KEY=os.getenv("GEMINI_API_KEY","")
+def _get_secret(key:str, default:str="")->str:
+    try:
+        return st.secrets.get(key, os.getenv(key, default))
+    except Exception:
+        return os.getenv(key, default)
+DEFAULT_VAPI_API_KEY=_get_secret("VAPI_API_KEY","")
+DEFAULT_VAPI_PUBLIC_KEY=_get_secret("VAPI_PUBLIC_KEY","")
+DEFAULT_GEMINI_API_KEY=_get_secret("GEMINI_API_KEY","")
 
 st.set_page_config(page_title=APP_TITLE, page_icon="🎤", layout="wide")
 st.title(APP_TITLE); st.caption(APP_SUBTITLE)
@@ -31,7 +36,7 @@ with st.sidebar:
     vapi_api_key=DEFAULT_VAPI_API_KEY
     vapi_public_key=DEFAULT_VAPI_PUBLIC_KEY
     gemini_api_key=DEFAULT_GEMINI_API_KEY
-    st.caption("Using environment variables for API keys. Configure in .env.")
+    st.caption("Using Streamlit Secrets / env vars for API keys. Configure in App Settings → Secrets (Cloud) or .env (local).")
     st.divider(); st.subheader("Voice & Model")
     voice_provider=st.selectbox("TTS Provider",["11labs"],index=0)
     voice_id=st.text_input("11labs Voice ID", value="xZp4zaaBzoWhWxxrcAij")
