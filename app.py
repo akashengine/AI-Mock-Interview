@@ -200,101 +200,45 @@ else:
     sel=st.selectbox("Select Candidate", options=candidate_keys, index=candidate_keys.index(st.session_state.current_candidate) if st.session_state.current_candidate in candidate_keys else 0)
     st.session_state.current_candidate=sel
     a_id=st.session_state.assistants[sel]["assistant_id"]
-    col1,col2,col3=st.columns([1,1,1])
-    with col1:
-        if st.button("Open Voice Widget", type="primary"):
-            st.session_state.interview_started_at=dt.datetime.utcnow().isoformat()+"Z"
-            st.session_state.widget_open=True
-    with col2:
-        if st.button("Close Voice Widget"):
-            st.session_state.widget_open=False
-    with col3:
-        if st.button("Open In New Tab (Mic-friendly)"):
-            # Open the widget in a top-level window to avoid iframe mic permission issues
-            embed_html=textwrap.dedent(f"""
-            <script>
-              (function(){{
-                const assistant = "{a_id}";
-                const apiKey = "{vapi_public_key}";
-                const html = `<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>UPSC Interview</title><style>body{{font-family:sans-serif;padding:16px}}</style></head><body><h3>UPSC Interview – Voice Widget</h3><div id=\"vapi-root\"></div><p>Please allow microphone access in your browser when prompted.</p><script>var vapiInstance=null;const assistant=\"{a_id}\";const apiKey=\"{vapi_public_key}\";const buttonConfig={{}};(function(d,t){{var g=d.createElement(t),s=d.getElementsByTagName(t)[0];g.src=\"https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js\";g.defer=true;g.async=true;s.parentNode.insertBefore(g,s);g.onload=function(){{vapiInstance=window.vapiSDK.run({{apiKey:apiKey,assistant:assistant,config:buttonConfig}});}};}})(document,\"script\");<\/script></body></html>`;
-                const w = window.open('', '_blank');
-                if (w) {{ w.document.write(html); w.document.close(); }}
-              }})();
-            </script>
-            """).strip()
-            st.components.v1.html(embed_html, height=0)
-    if st.session_state.widget_open and vapi_public_key and a_id:
-        html=textwrap.dedent(f"""
+
+    if st.button("Start Interview Session", type="primary"):
+        st.session_state.interview_started_at=dt.datetime.utcnow().isoformat()+"Z"
+
+    # Always offer a fullscreen new-tab launcher using a data URL (no iframe, no localhost)
+    widget_page=textwrap.dedent(f"""
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>UPSC Interview – Voice Call</title>
+        <style>
+          body{{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:16px;background:#0b0b0b;color:#f2f2f2}}
+          #vapi-root{{margin-top:12px}}
+        </style>
+      </head>
+      <body>
+        <h3>UPSC Interview – Voice Call</h3>
+        <p>Please allow microphone access when prompted.</p>
         <div id="vapi-root"></div>
         <script>
-          var vapiInstance=null;
-          const assistant="{a_id}";
-          const apiKey="{vapi_public_key}";
-          const buttonConfig={{}};
-          (function(d,t){{var g=d.createElement(t),s=d.getElementsByTagName(t)[0];g.src="https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";g.defer=true;g.async=true;s.parentNode.insertBefore(g,s);g.onload=function(){{vapiInstance=window.vapiSDK.run({{apiKey:apiKey,assistant:assistant,config:buttonConfig}});}};}})(document,"script");
+          var vapiInstance = null;
+          const assistant = "{a_id}";
+          const apiKey = "{vapi_public_key}";
+          const buttonConfig = {{}};
+          (function(d,t){{
+            var g=d.createElement(t), s=d.getElementsByTagName(t)[0];
+            g.src="https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
+            g.defer=true; g.async=true; s.parentNode.insertBefore(g,s);
+            g.onload=function(){{ vapiInstance=window.vapiSDK.run({{ apiKey: apiKey, assistant: assistant, config: buttonConfig }}); }};
+          }})(document, "script");
         </script>
-        """).strip()
-        st.components.v1.html(html, height=120)
-        st.caption("If the widget spins without starting, use 'Open In New Tab' above to grant mic permissions.")
-
-    # External standalone widget served from localhost (grants top-level mic permission)
-    with st.expander("Alternative: Launch standalone widget (recommended if mic blocked)"):
-        st.write("This opens a new tab at http://localhost with the voice widget running in top-level context.")
-        def _write_widget_page(path:str, public_key:str, assistant_id:str):
-            page=textwrap.dedent(f"""
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <meta charset="utf-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <title>UPSC Interview – Voice Widget</title>
-                <style>body{{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:16px;margin:0;background:#0b0b0b;color:#f2f2f2}} #vapi-root{{margin-top:12px}}</style>
-              </head>
-              <body>
-                <h3>UPSC Interview – Voice Widget</h3>
-                <p>Please allow microphone access when prompted.</p>
-                <div id="vapi-root"></div>
-                <script>
-                  var vapiInstance=null;
-                  const assistant = "{assistant_id}";
-                  const apiKey = "{public_key}";
-                  const buttonConfig = {{}};
-                  (function(d,t){{
-                    var g=d.createElement(t), s=d.getElementsByTagName(t)[0];
-                    g.src="https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
-                    g.defer=true; g.async=true; s.parentNode.insertBefore(g,s);
-                    g.onload=function(){{ vapiInstance=window.vapiSDK.run({{ apiKey: apiKey, assistant: assistant, config: buttonConfig }}); }};
-                  }})(document, "script");
-                </script>
-              </body>
-            </html>
-            """).strip()
-            with open(path,"w",encoding="utf-8") as f:
-                f.write(page)
-
-        def _ensure_static_server(root_dir:str, port:int=8765):
-            if st.session_state.get("_static_server_running"): return
-            from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-            handler=functools.partial(SimpleHTTPRequestHandler, directory=root_dir)
-            def _serve():
-                httpd=ThreadingHTTPServer(("", port), handler)
-                httpd.serve_forever()
-            t=threading.Thread(target=_serve, daemon=True)
-            t.start()
-            st.session_state._static_server_running=True
-            st.session_state._static_server_port=port
-            st.session_state._static_server_root=root_dir
-
-        if st.button("Launch Standalone Widget on localhost:8765"):
-            root=os.getcwd()
-            target=os.path.join(root, "index.html")
-            try:
-                _write_widget_page(target, vapi_public_key, a_id)
-                _ensure_static_server(root, 8765)
-                st.success("Standalone widget ready.")
-                st.link_button("Open Widget Tab", "http://localhost:8765/index.html", type="primary")
-            except Exception as e:
-                st.error(f"Failed to launch widget: {e}")
+      </body>
+    </html>
+    """).strip()
+    data_url="data:text/html;base64,"+base64.b64encode(widget_page.encode()).decode()
+    st.link_button("Open Interview in New Tab", data_url, type="secondary")
+    st.caption("Opens a full-screen tab on this device. This avoids iframe/localhost mic issues.")
 
 st.markdown("---")
 st.header("Step 6 · Fetch & Display Feedback")
