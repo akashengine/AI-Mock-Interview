@@ -202,43 +202,112 @@ else:
     a_id=st.session_state.assistants[sel]["assistant_id"]
 
     if st.button("Start Interview Session", type="primary"):
-        st.session_state.interview_started_at=dt.datetime.utcnow().isoformat()+"Z"
+        st.session_state.interview_started_at=dt.datetime.now(dt.timezone.utc).isoformat()
 
-    # Always offer a fullscreen new-tab launcher using a data URL (no iframe, no localhost)
-    widget_page=textwrap.dedent(f"""
+    # Embedded Web SDK controls (start/end/mute/unmute)
+    embedded_controls_html=textwrap.dedent(f"""
     <!DOCTYPE html>
     <html>
       <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta charset=\"utf-8\" />
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+        <style>
+          body {{ font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin: 0; padding: 10px; background: #0b0b0b; color: #f2f2f2; }}
+          #controls {{ display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }}
+          button {{ background: #14B8A6; color: #001314; border: 0; padding: 8px 12px; border-radius: 6px; cursor: pointer; }}
+          button.secondary {{ background: #333; color: #eee; }}
+          pre#log {{ height: 120px; overflow: auto; background: #111; padding: 8px; border-radius: 6px; margin: 0; }}
+        </style>
+      </head>
+      <body>
+        <div id=\"controls\">
+          <button id=\"start\">Start Call</button>
+          <button id=\"end\" class=\"secondary\">End Call</button>
+          <button id=\"mute\" class=\"secondary\">Mute</button>
+          <button id=\"unmute\" class=\"secondary\">Unmute</button>
+        </div>
+        <pre id=\"log\"></pre>
+        <script>
+          const apiKey = \"{vapi_public_key}\";
+          const assistantId = \"{a_id}\";
+          function log(m) { const el=document.getElementById('log'); el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; }
+          function load(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+          (async ()=>{
+            try {
+              await load('https://unpkg.com/@vapi-ai/web/dist/index.umd.js');
+              const Vapi = window.Vapi?.default || window.Vapi;
+              const vapi = new Vapi(apiKey);
+              window._vapi=vapi;
+              document.getElementById('start').onclick=()=>vapi.start(assistantId);
+              document.getElementById('end').onclick=()=>vapi.stop();
+              document.getElementById('mute').onclick=()=>vapi.mute();
+              document.getElementById('unmute').onclick=()=>vapi.unmute();
+              vapi.on('call-start', ()=>log('call-start'));
+              vapi.on('call-end', ()=>log('call-end'));
+              vapi.on('message', (m)=>{ if(m.type==='transcript'){ log(`${m.role}: ${m.transcript}`); }});
+              log('Web SDK ready. Click Start Call and allow mic.');
+            } catch(e) { log('Failed to load Web SDK: '+e); }
+          })();
+        </script>
+      </body>
+    </html>
+    """)
+    st.components.v1.html(embedded_controls_html, height=260)
+
+    # Full-screen Web SDK page in a new tab as fallback
+    page_template=textwrap.dedent(f"""
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset=\"utf-8\" />
+        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
         <title>UPSC Interview – Voice Call</title>
         <style>
-          body{{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:16px;background:#0b0b0b;color:#f2f2f2}}
-          #vapi-root{{margin-top:12px}}
+          body {{ font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin: 0; padding: 16px; background: #0b0b0b; color: #f2f2f2; }}
+          #controls {{ display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }}
+          button {{ background: #14B8A6; color: #001314; border: 0; padding: 10px 14px; border-radius: 6px; cursor: pointer; }}
+          button.secondary {{ background: #333; color: #eee; }}
+          pre#log {{ height: 160px; overflow: auto; background: #111; padding: 8px; border-radius: 6px; margin: 0; }}
         </style>
       </head>
       <body>
         <h3>UPSC Interview – Voice Call</h3>
         <p>Please allow microphone access when prompted.</p>
-        <div id="vapi-root"></div>
+        <div id=\"controls\">
+          <button id=\"start\">Start Call</button>
+          <button id=\"end\" class=\"secondary\">End Call</button>
+          <button id=\"mute\" class=\"secondary\">Mute</button>
+          <button id=\"unmute\" class=\"secondary\">Unmute</button>
+        </div>
+        <pre id=\"log\"></pre>
         <script>
-          var vapiInstance = null;
-          const assistant = "{a_id}";
-          const apiKey = "{vapi_public_key}";
-          const buttonConfig = {{}};
-          (function(d,t){{
-            var g=d.createElement(t), s=d.getElementsByTagName(t)[0];
-            g.src="https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
-            g.defer=true; g.async=true; s.parentNode.insertBefore(g,s);
-            g.onload=function(){{ vapiInstance=window.vapiSDK.run({{ apiKey: apiKey, assistant: assistant, config: buttonConfig }}); }};
-          }})(document, "script");
+          const apiKey = \"{vapi_public_key}\";
+          const assistantId = \"{a_id}\";
+          function log(m) { const el=document.getElementById('log'); el.textContent += m + '\n'; el.scrollTop = el.scrollHeight; }
+          function load(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.async=true; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+          (async ()=>{
+            try {
+              await load('https://unpkg.com/@vapi-ai/web/dist/index.umd.js');
+              const Vapi = window.Vapi?.default || window.Vapi;
+              const vapi = new Vapi(apiKey);
+              window._vapi=vapi;
+              document.getElementById('start').onclick=()=>vapi.start(assistantId);
+              document.getElementById('end').onclick=()=>vapi.stop();
+              document.getElementById('mute').onclick=()=>vapi.mute();
+              document.getElementById('unmute').onclick=()=>vapi.unmute();
+              vapi.on('call-start', ()=>log('call-start'));
+              vapi.on('call-end', ()=>log('call-end'));
+              vapi.on('message', (m)=>{ if(m.type==='transcript'){ log(`${m.role}: ${m.transcript}`); }});
+              log('Web SDK ready. Click Start Call and allow mic.');
+            } catch(e) { log('Failed to load Web SDK: '+e); }
+          })();
         </script>
       </body>
     </html>
-    """).strip()
-    data_url="data:text/html;base64,"+base64.b64encode(widget_page.encode()).decode()
-    st.link_button("Open Interview in New Tab", data_url, type="secondary")
-    st.caption("Opens a full-screen tab on this device. This avoids iframe/localhost mic issues.")
+    """)
+    data_url="data:text/html;base64,"+base64.b64encode(page_template.encode()).decode()
+    st.link_button("Open Web SDK in New Tab", data_url, type="secondary")
+    st.caption("Prefer the new tab if the embedded controls cannot access the microphone.")
 
 st.markdown("---")
 st.header("Step 6 · Fetch & Display Feedback")
