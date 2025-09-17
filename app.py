@@ -204,12 +204,36 @@ else:
     if st.button("Start Interview Session", type="primary"):
         st.session_state.interview_started_at=dt.datetime.now(dt.timezone.utc).isoformat()
 
-    # Serve static voice.html with query params
-    base = "static/voice.html"
-    qs = f"?apiKey={vapi_public_key}&assistant={a_id}"
-    st.components.v1.iframe(src=base+qs, height=340)
-    st.link_button("Open Fullscreen Voice Page", base+qs, type="secondary")
-    st.caption("If the iframe cannot access the microphone, use the fullscreen link above.")
+    # Embed Vapi Web Widget directly on this screen
+    widget_html=textwrap.dedent(f"""
+    <div id="vapi-container">
+      <vapi-widget
+        public-key="{vapi_public_key}"
+        assistant-id="{a_id}"
+        mode="voice"
+        theme="dark"
+        base-bg-color="#000000"
+        accent-color="#14B8A6"
+        cta-button-color="#000000"
+        cta-button-text-color="#ffffff"
+        border-radius="large"
+        size="full"
+        position="bottom-right"
+        title="UPSC MOCK INTERVIEW"
+        start-button-text="Start"
+        end-button-text="End Call"
+        chat-first-message="Hey, How can I help you today?"
+        chat-placeholder="Type your message..."
+        voice-show-transcript="true"
+        consent-required="true"
+        consent-title="Terms and conditions"
+        consent-content="By clicking &quot;Agree,&quot; and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as otherwise described in our Terms of Service."
+        consent-storage-key="vapi_widget_consent"
+      ></vapi-widget>
+    </div>
+    <script src="https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js" async type="text/javascript"></script>
+    """).strip()
+    st.components.v1.html(widget_html, height=360)
 
 st.markdown("---")
 st.header("Step 6 · Fetch & Display Feedback")
