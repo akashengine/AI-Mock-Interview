@@ -235,6 +235,22 @@ else:
     """).strip()
     st.components.v1.html(widget_html, height=360)
 
+    # Mic-friendly launcher in a new tab (top-level context)
+    if st.button("Open Mic-Friendly Widget In New Tab"):
+        launcher=textwrap.dedent(f"""
+        <script>
+          (function(){{
+            var html='<!DOCTYPE html><html><head><meta charset=\'utf-8\'><meta name=\'viewport\' content=\'width=device-width, initial-scale=1\'><title>UPSC Mock Interview</title></head><body>'+
+              '<vapi-widget public-key=\'{vapi_public_key}\' assistant-id=\'{a_id}\' mode=\'voice\' theme=\'dark\' size=\'full\' position=\'bottom-right\' title=\'UPSC MOCK INTERVIEW\' start-button-text=\'Start\' end-button-text=\'End Call\' voice-show-transcript=\'true\' consent-required=\'true\' consent-title=\'Terms and conditions\' consent-content=\'By clicking &quot;Agree,&quot; and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as otherwise described in our Terms of Service.\' consent-storage-key=\'vapi_widget_consent\'></vapi-widget>'+
+              '<script src=\'https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js\' async type=\'text/javascript\'></'+'script>'+
+              '</body></html>';
+            var w=window.open('', '_blank');
+            if(w){{ w.document.write(html); w.document.close(); }}
+          }})();
+        </script>
+        """).strip()
+        st.components.v1.html(launcher, height=0)
+
 st.markdown("---")
 st.header("Step 6 · Fetch & Display Feedback")
 auto=st.checkbox("Auto-refresh every 5s", value=False)
