@@ -32,7 +32,7 @@ if "widget_open" not in st.session_state: st.session_state.widget_open=False
 
 with st.sidebar:
     st.header("Configuration")
-    # Hide API key inputs for a clean UI; read from environment instead
+    # Hide API key inputs for a clean UI; read from environment insatead
     vapi_api_key=DEFAULT_VAPI_API_KEY
     vapi_public_key=DEFAULT_VAPI_PUBLIC_KEY
     gemini_api_key=DEFAULT_GEMINI_API_KEY
