@@ -372,7 +372,7 @@ def create_vapi_assistant(name: str, system_prompt: str, roll_no: str) -> str:
             "stability": 0.5,
             "similarityBoost": 0.75
         },
-        "maxDurationSeconds": 2400,
+        "maxDurationSeconds": 30,
         "model": {
             "provider": "openai",
             "model": "gpt-4o-mini",
