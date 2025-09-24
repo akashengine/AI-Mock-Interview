@@ -368,7 +368,7 @@ def create_vapi_assistant(name: str, system_prompt: str, roll_no: str) -> str:
         "voice": {
             "provider": "11labs",
             "model": "eleven_multilingual_v2",
-            "voiceId": "xZp4zaaBzoWhWxxrcAij",
+            "voiceId": "1vSsmMcrftVqwsGrxUMM",
             "stability": 0.5,
             "similarityBoost": 0.75
         },
